@@ -10,20 +10,21 @@ using an analytic Bartlett correction.
 ```python
 from gvm_toolkit import GVMCombination
 
-# measurements and statistical uncertainties
+# measurements and statistical uncertainties (vector or covariance matrix)
 y = [...]
 stat = [...]
+# stat_cov = np.array([...])  # alternatively provide full covariance
 
-# dictionary of systematic uncertainties for each measurement
+# optional dictionary of systematic uncertainties for each measurement
 syst = {
     'sys1': [...],
     'sys2': [...],
 }
 
-# corresponding correlation matrices (numpy arrays)
+# correlation matrices; if omitted a diagonal matrix is assumed
 correlations = {
     'sys1': rho_sys1,
-    'sys2': rho_sys2,
+    # 'sys2' : defaults to diagonal correlation
 }
 
 # specify which systematics have an errors-on-errors parameter epsilon
@@ -32,6 +33,7 @@ uncertain = {
 }
 
 comb = GVMCombination(y, stat, syst, correlations, uncertain)
+# or simply GVMCombination(y, stat) if no systematics are present
 
 print("mu hat:", comb.fit_results['mu'])
 
