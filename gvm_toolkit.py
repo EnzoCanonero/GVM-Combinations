@@ -4,12 +4,21 @@ from iminuit import Minuit
 class GVMCombination:
     """General combination tool using the Gamma Variance model."""
 
-    def __init__(self, measurements, stat, systematics, correlations,
+    def __init__(self, measurements, stat, systematics=None, correlations=None,
                  uncertain_systematics=None):
         self.y = np.asarray(measurements, dtype=float)
         self.stat = np.asarray(stat, dtype=float)
+
+        systematics = systematics or {}
+        correlations = correlations or {}
         self.syst = {k: np.asarray(v, dtype=float) for k, v in systematics.items()}
-        self.corr = {k: np.asarray(m, dtype=float) for k, m in correlations.items()}
+        self.corr = {}
+        for k, sigma in self.syst.items():
+            if k in correlations:
+                self.corr[k] = np.asarray(correlations[k], dtype=float)
+            else:
+                self.corr[k] = np.eye(len(sigma))
+
         self.uncertain_systematics = uncertain_systematics or {}
 
         self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
@@ -56,7 +65,10 @@ class GVMCombination:
     # ------------------------------------------------------------------
     def _compute_likelihood_matrices(self):
         n = self.y.size
-        V_stat = np.diag(self.stat ** 2)
+        if self.stat.ndim == 2:
+            V_stat = self.stat
+        else:
+            V_stat = np.diag(self.stat ** 2)
         V_syst = np.zeros((n, n))
         for src, rho in self.corr.items():
             if src not in self.uncertain_systematics:
