@@ -8,33 +8,13 @@ using an analytic Bartlett correction.
 ## Usage
 
 ```python
-from gvm_toolkit import (
-    GVMCombination,
-    load_data_file,
-    load_correlation_matrix,
-)
+from gvm_toolkit import GVMCombination
 
-# load measurements and statistical uncertainties from a text file
-y, stat, syst = load_data_file("data.txt")
-# stat_cov = np.array([...])  # alternatively provide full covariance
-
-# correlation matrices; if omitted a diagonal matrix is assumed
-correlations = {}
-load_correlation_matrix("rho_sys1.txt", "sys1", correlations)
-# load_correlation_matrix("rho_sys2.txt", "sys2", correlations)
-
-# specify which systematics have an errors-on-errors parameter epsilon
-uncertain = {
-    'sys1': 0.3,
-}
-
-comb = GVMCombination(y, stat, syst, correlations, uncertain)
-# or simply GVMCombination(y, stat) if no systematics are present
+# create the combination directly from a configuration file
+comb = GVMCombination("input_files/config_lhc.txt")
 
 print("mu hat:", comb.fit_results['mu'])
 
-# minimise only the nuisance parameters while fixing mu
-comb.minimize(fixed={'mu': 172.5})
 print("68% CI:", comb.confidence_interval())
 print("Goodness of fit:", comb.goodness_of_fit())
 ```
