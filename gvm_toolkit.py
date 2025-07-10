@@ -46,8 +46,12 @@ def load_data_file(file_path):
     return data, stat, syst
 
 
-def load_correlation_matrix(file_path, name):
-    """Load a correlation matrix from file.
+def load_correlation_matrix(file_path, name, correlations=None):
+    """Load a correlation matrix from ``file_path``.
+
+    If ``correlations`` is provided, it is updated in-place with the new
+    matrix and returned.  Otherwise a new dictionary ``{name: matrix}`` is
+    created and returned.
 
     Parameters
     ----------
@@ -55,15 +59,20 @@ def load_correlation_matrix(file_path, name):
         Path to the matrix file.
     name : str
         Name of the systematic uncertainty.
+    correlations : dict, optional
+        Dictionary to update with the loaded matrix.
 
     Returns
     -------
     dict
-        ``{name: matrix}`` suitable for passing to ``GVMCombination``.
+        The updated dictionary of correlation matrices.
     """
 
     matrix = np.loadtxt(file_path, dtype=float)
-    return {name: matrix}
+    if correlations is None:
+        correlations = {}
+    correlations[name] = matrix
+    return correlations
 
 class GVMCombination:
     """General combination tool using the Gamma Variance model."""

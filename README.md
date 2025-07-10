@@ -19,10 +19,9 @@ y, stat, syst = load_data_file("data.txt")
 # stat_cov = np.array([...])  # alternatively provide full covariance
 
 # correlation matrices; if omitted a diagonal matrix is assumed
-correlations = {
-    'sys1': load_correlation_matrix("rho_sys1.txt", "sys1")['sys1'],
-    # 'sys2' : defaults to diagonal correlation
-}
+correlations = {}
+load_correlation_matrix("rho_sys1.txt", "sys1", correlations)
+# load_correlation_matrix("rho_sys2.txt", "sys2", correlations)
 
 # specify which systematics have an errors-on-errors parameter epsilon
 uncertain = {
