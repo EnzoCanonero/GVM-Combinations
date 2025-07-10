@@ -77,25 +77,86 @@ def load_correlation_matrix(file_path, name, correlations=None):
 class GVMCombination:
     """General combination tool using the Gamma Variance model."""
 
-    def __init__(self, measurements, stat, systematics=None, correlations=None,
-                 uncertain_systematics=None):
-        self.y = np.asarray(measurements, dtype=float)
-        self.stat = np.asarray(stat, dtype=float)
+    def __init__(self, config_file):
+        cfg = self._parse_config(config_file)
 
-        systematics = systematics or {}
-        correlations = correlations or {}
-        self.syst = {k: np.asarray(v, dtype=float) for k, v in systematics.items()}
+        self.name = cfg['name']
+        self.measurements = cfg['measurements']
+        self.y = np.asarray(cfg['data']['central'], dtype=float)
+        self.stat = np.asarray(cfg['data']['stat'], dtype=float)
+
+        self.syst = {k: np.asarray(v, dtype=float)
+                     for k, v in cfg['data']['systematics'].items()}
+
         self.corr = {}
-        for k, sigma in self.syst.items():
-            if k in correlations:
-                self.corr[k] = np.asarray(correlations[k], dtype=float)
+        for k, info in cfg['systematics'].items():
+            path = info['path']
+            if path:
+                self.corr[k] = np.loadtxt(path, dtype=float)
             else:
-                self.corr[k] = np.eye(len(sigma))
+                self.corr[k] = np.eye(len(self.y))
 
-        self.uncertain_systematics = uncertain_systematics or {}
+        self.uncertain_systematics = {
+            k: info['epsilon'] for k, info in cfg['systematics'].items()
+            if info['epsilon'] != 0.0
+        }
 
         self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
         self.fit_results = self.minimize()
+
+    # ------------------------------------------------------------------
+    def _parse_config(self, path):
+        cfg = {
+            'systematics': {},
+            'data': {}
+        }
+        section = None
+        data_rows = []
+        with open(path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                if line.startswith('&'):
+                    section = line[1:].strip().lower()
+                    continue
+                if section == 'combination setup':
+                    if line.lower().startswith('combination name'):
+                        cfg['name'] = line.split('=', 1)[1].strip()
+                    elif line.lower().startswith('number of measurements'):
+                        cfg['n_meas'] = int(line.split('=', 1)[1])
+                    elif line.lower().startswith('measurement names'):
+                        names = line.split('=', 1)[1]
+                        cfg['measurements'] = names.replace(',', ' ').split()
+                elif section == 'systematics setup':
+                    if line.lower().startswith('number of systematics'):
+                        cfg['n_syst'] = int(line.split('=', 1)[1])
+                    else:
+                        parts = line.split()
+                        name = parts[0]
+                        eps = float(parts[1])
+                        path = parts[2] if len(parts) > 2 else None
+                        cfg['systematics'][name] = {'epsilon': eps, 'path': path}
+                elif section == 'data':
+                    data_rows.append([float(x) for x in line.split()])
+
+        n_meas = cfg.get('n_meas', len(data_rows))
+        n_syst = cfg.get('n_syst', len(cfg['systematics']))
+        if len(data_rows) != n_meas:
+            raise ValueError('Expected %d measurements, found %d' %
+                             (n_meas, len(data_rows)))
+        for row in data_rows:
+            if len(row) != 2 + n_syst:
+                raise ValueError('Data rows must have %d columns' % (2 + n_syst))
+
+        central = [r[0] for r in data_rows]
+        stat = [r[1] for r in data_rows]
+        syst = {}
+        names = list(cfg['systematics'].keys())
+        for i, name in enumerate(names):
+            syst[name] = [r[2 + i] for r in data_rows]
+        cfg['data'] = {'central': central, 'stat': stat, 'systematics': syst}
+        return cfg
 
     # ------------------------------------------------------------------
     def _reduce_corr(self, rho):
