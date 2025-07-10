@@ -8,22 +8,19 @@ using an analytic Bartlett correction.
 ## Usage
 
 ```python
-from gvm_toolkit import GVMCombination
+from gvm_toolkit import (
+    GVMCombination,
+    load_data_file,
+    load_correlation_matrix,
+)
 
-# measurements and statistical uncertainties (vector or covariance matrix)
-y = [...]
-stat = [...]
+# load measurements and statistical uncertainties from a text file
+y, stat, syst = load_data_file("data.txt")
 # stat_cov = np.array([...])  # alternatively provide full covariance
-
-# optional dictionary of systematic uncertainties for each measurement
-syst = {
-    'sys1': [...],
-    'sys2': [...],
-}
 
 # correlation matrices; if omitted a diagonal matrix is assumed
 correlations = {
-    'sys1': rho_sys1,
+    'sys1': load_correlation_matrix("rho_sys1.txt", "sys1")['sys1'],
     # 'sys2' : defaults to diagonal correlation
 }
 

@@ -1,6 +1,70 @@
 import numpy as np
 from iminuit import Minuit
 
+
+def load_data_file(file_path):
+    """Load measurements and uncertainties from a simple text file.
+
+    The file should contain one entry per line with the format::
+
+        name value1 value2 ...
+
+    The entry labelled ``data`` contains the central values while ``stat``
+    provides the statistical uncertainties.  All other lines are interpreted
+    as systematic uncertainties.  A line labelled ``total`` is ignored.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the text file.
+
+    Returns
+    -------
+    tuple
+        ``(data, stat, systematics)`` where ``systematics`` is a dictionary
+        mapping the source name to an array of uncertainties.
+    """
+
+    data = None
+    stat = None
+    syst = {}
+    with open(file_path, "r") as f:
+        for line in f:
+            parts = line.strip().split()
+            if not parts:
+                continue
+            name, values = parts[0], np.array(list(map(float, parts[1:])))
+            lname = name.lower()
+            if lname in {"data", "mt"}:
+                data = values
+            elif lname == "stat":
+                stat = values
+            elif lname == "total":
+                continue
+            else:
+                syst[name] = values
+    return data, stat, syst
+
+
+def load_correlation_matrix(file_path, name):
+    """Load a correlation matrix from file.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the matrix file.
+    name : str
+        Name of the systematic uncertainty.
+
+    Returns
+    -------
+    dict
+        ``{name: matrix}`` suitable for passing to ``GVMCombination``.
+    """
+
+    matrix = np.loadtxt(file_path, dtype=float)
+    return {name: matrix}
+
 class GVMCombination:
     """General combination tool using the Gamma Variance model."""
 
