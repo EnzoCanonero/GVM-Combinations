@@ -302,15 +302,30 @@ class GVMCombination:
             for n, val in fixed.items():
                 params[names.index(n)] = val
             mu = params[0]
-            thetas = params[1:]
+            theta_flat = params[1:]
+            thetas = []
+            i = 0
+            for key in self.C_inv:
+                npar = self.C_inv[key].shape[0]
+                thetas.append(np.array(theta_flat[i:i+npar]))
+                i += npar
             return self.nll(mu, *thetas)
 
-        m = Minuit.from_array_func(
-            f,
-            x0,
-            name=free_names,
-            errordef=0.5,
-        )
+        if hasattr(Minuit, "from_array_func"):
+            m = Minuit.from_array_func(
+                f,
+                x0,
+                name=free_names,
+                errordef=0.5,
+            )
+        else:
+            # iminuit >=3 removed ``from_array_func``. Use constructor instead.
+            m = Minuit(
+                f,
+                x0,
+                name=free_names,
+            )
+            m.errordef = 0.5
         m.migrad()
 
         # Collect fitted values
