@@ -378,7 +378,7 @@ class GVMCombination:
             thetas = [np.asarray(thetas[idx[i]:idx[i+1]])
                       for i in range(len(keys))]
 
-        return -2 * self.nll(mu, *thetas)
+        return 2 * self.nll(mu, *thetas)
 
     # ------------------------------------------------------------------
     def compute_FIM(self, S=None):
