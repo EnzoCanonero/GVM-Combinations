@@ -455,8 +455,8 @@ class GVMCombination:
 
         if len(self.C_inv) == 0:
             # No nuisance parameters: both corrections reduce to their
-            # asymptotic values.
-            return 1.0, float(len(self.m_t) - 1)
+            # asymptotic values.  ``self.y`` holds the measured values.
+            return 1.0, float(len(self.y) - 1)
 
         thetas = self.fit_results['thetas']
         keys = list(self.C_inv.keys())
@@ -486,7 +486,7 @@ class GVMCombination:
             b_theta += (4*e**2/S_s)*trW_t_C - (2*e**2/S_s**2)*trW_t_CWC + (e**2/S_s**2)*(trW_t_C**2)
             b_chi2 += (2*N + N**2) * e**2
         b_profile = 1 + b_lik - b_theta
-        b_chi2 = float(len(self.m_t) - 1) + b_chi2 - b_lik
+        b_chi2 = float(len(self.y) - 1) + b_chi2 - b_lik
         return b_profile, b_chi2
 
     # ------------------------------------------------------------------
