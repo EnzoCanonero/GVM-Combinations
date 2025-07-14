@@ -368,6 +368,16 @@ class GVMCombination:
             mu = fit['mu']
         if thetas is None:
             thetas = fit['thetas']
+
+        # ``fit['thetas']`` is stored as a flat array.  Split it into one
+        # array per systematic before calling ``nll``.
+        if not isinstance(thetas[0], (list, np.ndarray)):
+            keys = list(self.C_inv.keys())
+            sizes = [self.C_inv[k].shape[0] for k in keys]
+            idx = np.cumsum([0] + sizes)
+            thetas = [np.asarray(thetas[idx[i]:idx[i+1]])
+                      for i in range(len(keys))]
+
         return -2 * self.nll(mu, *thetas)
 
     # ------------------------------------------------------------------
