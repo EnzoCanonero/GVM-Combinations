@@ -399,7 +399,9 @@ class GVMCombination:
         # where no nuisance parameters are present.
         thetas = np.asarray(thetas)
         if thetas.size == 0:
-            return 2 * self.nll(mu)
+            q = 2 * self.nll(mu)
+            _, b_chi2 = self.bartlett_correction()
+            return q / b_chi2
         if not isinstance(thetas[0], (list, np.ndarray)):
             keys = list(self.C_inv.keys())
             sizes = [self.C_inv[k].shape[0] for k in keys]
@@ -407,7 +409,9 @@ class GVMCombination:
             thetas = [np.asarray(thetas[idx[i]:idx[i+1]])
                       for i in range(len(keys))]
 
-        return 2 * self.nll(mu, *thetas)
+        q = 2 * self.nll(mu, *thetas)
+        _, b_chi2 = self.bartlett_correction()
+        return q / b_chi2
 
     # ------------------------------------------------------------------
     def compute_FIM(self, S=None):
@@ -438,6 +442,22 @@ class GVMCombination:
 
     # ------------------------------------------------------------------
     def bartlett_correction(self):
+        """Return Bartlett corrections for the profile likelihood ratio and
+        goodness-of-fit statistics.
+
+        Returns
+        -------
+        tuple of float
+            ``(b_profile, b_chi2)`` where ``b_profile`` rescales the likelihood
+            ratio used for confidence intervals and ``b_chi2`` rescales the
+            goodness-of-fit statistic.
+        """
+
+        if len(self.C_inv) == 0:
+            # No nuisance parameters: both corrections reduce to their
+            # asymptotic values.
+            return 1.0, float(len(self.m_t) - 1)
+
         thetas = self.fit_results['thetas']
         keys = list(self.C_inv.keys())
         sizes = [self.C_inv[k].shape[0] for k in keys]
@@ -452,7 +472,7 @@ class GVMCombination:
         W_full = np.linalg.inv(F)[1:, 1:]
         W_theta = np.linalg.inv(F[1:, 1:])
         start_idx = idx[:-1]
-        b_lik = b_theta = 0
+        b_lik = b_theta = b_chi2 = 0.0
         for s, (th, Cinv, e, N, S_s) in enumerate(zip(thetas, C_inv_list, eps, N_s, S)):
             si = start_idx[s]
             ei = si + N
@@ -464,12 +484,14 @@ class GVMCombination:
             trW_t_CWC = np.trace(Wt_s @ Cinv @ Wt_s @ Cinv)
             b_lik += (4*e**2/S_s)*trWC - (2*e**2/S_s**2)*trWCWC + (e**2/S_s**2)*(trWC**2)
             b_theta += (4*e**2/S_s)*trW_t_C - (2*e**2/S_s**2)*trW_t_CWC + (e**2/S_s**2)*(trW_t_C**2)
+            b_chi2 += (2*N + N**2) * e**2
         b_profile = 1 + b_lik - b_theta
-        return b_profile
+        b_chi2 = float(len(self.m_t) - 1) + b_chi2 - b_lik
+        return b_profile, b_chi2
 
     # ------------------------------------------------------------------
     def confidence_interval(self, step=0.01, tol=0.001, max_iter=1000):
-        b = self.bartlett_correction()
+        b_profile, _ = self.bartlett_correction()
         fit = self.fit_results or self.minimize()
         mu_hat = fit['mu']
         q0 = self.likelihood_ratio(mu_hat)
@@ -478,19 +500,19 @@ class GVMCombination:
         down = mu_hat
         q_down = q0
         it = 0
-        while q_up <= b and it < max_iter:
+        while q_up <= b_profile and it < max_iter:
             up += step
             q_up = self.likelihood_ratio(up)
             it += 1
         it = 0
-        while q_down <= b and it < max_iter:
+        while q_down <= b_profile and it < max_iter:
             down -= step
             q_down = self.likelihood_ratio(down)
             it += 1
         step /= 2
         it = 0
-        while abs(q_up - b) > tol and it < max_iter:
-            if q_up > b:
+        while abs(q_up - b_profile) > tol and it < max_iter:
+            if q_up > b_profile:
                 up -= step
             else:
                 up += step
@@ -499,8 +521,8 @@ class GVMCombination:
             it += 1
         step = step if step > 0 else 0.001
         it = 0
-        while abs(q_down - b) > tol and it < max_iter:
-            if q_down > b:
+        while abs(q_down - b_profile) > tol and it < max_iter:
+            if q_down > b_profile:
                 down += step
             else:
                 down -= step
