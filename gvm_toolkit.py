@@ -295,6 +295,31 @@ class GVMCombination:
                 free_names.append(n)
                 x0.append(initial[i])
 
+        # If no parameters remain free after applying the fixed values,
+        # directly evaluate the negative log-likelihood without calling a
+        # minimiser.
+        if len(x0) == 0:
+            params = list(initial)
+            for n, val in fixed.items():
+                params[names.index(n)] = val
+            mu = params[0]
+            theta_flat = params[1:]
+            thetas = []
+            i = 0
+            for key in self.C_inv:
+                npar = self.C_inv[key].shape[0]
+                thetas.append(np.array(theta_flat[i:i+npar]))
+                i += npar
+            nll_val = self.nll(mu, *thetas)
+            result = {
+                'mu': mu,
+                'thetas': np.array(theta_flat),
+                'nll': nll_val,
+            }
+            if update:
+                self.fit_results = result
+            return result
+
         def f(arr):
             params = list(initial)
             for val, idx in zip(arr, free_idx):
@@ -370,7 +395,11 @@ class GVMCombination:
             thetas = fit['thetas']
 
         # ``fit['thetas']`` is stored as a flat array.  Split it into one
-        # array per systematic before calling ``nll``.
+        # array per systematic before calling ``nll``.  Handle the case
+        # where no nuisance parameters are present.
+        thetas = np.asarray(thetas)
+        if thetas.size == 0:
+            return 2 * self.nll(mu)
         if not isinstance(thetas[0], (list, np.ndarray)):
             keys = list(self.C_inv.keys())
             sizes = [self.C_inv[k].shape[0] for k in keys]
