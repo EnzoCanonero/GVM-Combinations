@@ -23,3 +23,23 @@ Only the construction of the likelihood, numerical minimisation and the
 analytical Bartlett correction are implemented.  Plotting routines and code
 specific to the top-quark mass combination were removed to keep the toolkit
 lightweight and general.
+
+## Configuration File
+
+The combination is driven by a plain text configuration file.  Blank lines and
+any text after a ``#`` character are ignored.  Sections are introduced by an
+ampersand (``&``) followed by the section name.  The file uses three sections:
+
+* **&Combination setup** – contains general metadata.
+  - ``Combination Name = <name>``
+  - ``Number of Measurements = <n>``
+  - ``Measurement names = m1 m2 ...``
+* **&Systematics setup** – describes all systematic sources.
+  - ``Number of systematics = <n>``
+  - One line per systematic: ``name epsilon [path]`` where ``path`` points to an
+    optional correlation matrix file.
+* **&Data** – numeric table with one line per measurement.
+  - Each row lists the central value, statistical uncertainty and then all
+    systematic uncertainties in the order defined above.
+
+See ``input_files/config_lhc.txt`` for a complete example.

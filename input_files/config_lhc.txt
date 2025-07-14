@@ -1,9 +1,16 @@
 &Combination setup
+# Format:
+# Combination Name = <string>
+# Number of Measurements = <int>
+# Measurement names = <label1> <label2> ...
 Combination Name = LHC
 Number of Measurements = 15
 Measurement names = a b c d e f g h i j k l m n o
 
 &Systematics setup
+# Format:
+# Number of systematics = <int>
+# Each following line: <name> <epsilon> [path-to-correlation]
 Number of systematics = 25
 LHCJES1 0.0 input_files/LHCJES1.txt
 LHCJES2 0.0 input_files/LHCJES2.txt
@@ -32,7 +39,8 @@ method 0.0 input_files/method.txt
 other 0.0 input_files/other.txt
 
 &Data
-# values table follows
+# Format:
+# <value> <stat> <syst1> <syst2> ...
 173.79 0.54 0.54 0.30 0.43 0.68 0.03 0.02 0.00 0.19 0.13 0.07 0.04 0.01 0.01 0.26 0.47 0.53 0.00 0.14 0.05 0.10 0.00 0.04 0.01 0.09 0.07
 172.33 0.75 0.33 0.30 0.07 0.06 0.28 0.24 0.00 0.22 0.04 0.50 0.15 0.02 0.00 0.22 0.32 0.18 0.00 0.11 0.15 0.25 0.00 0.11 0.29 0.11 0.12
 175.06 1.35 0.38 0.20 0.24 0.62 0.10 0.02 0.00 0.01 0.00 0.16 0.02 0.02 0.01 0.30 0.22 0.50 0.00 0.22 0.08 0.09 0.00 0.35 0.00 0.42 0.24
