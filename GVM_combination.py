@@ -752,7 +752,6 @@ class combination:
             # Use the provided Bartlett correction
             pass
 
-        print(f"Bartlett correction b = {b}")
         # First, find the best fit mu
         
         best_fit = self.minimize_chi2()
@@ -921,12 +920,6 @@ class combination:
         plt.tight_layout()
         # Add the text to the top left corner with a fancy background
         
-        
-        plt.text(0.02, 0.95, "Includes fictitious measurement:\n$m_{t}^{\mathrm{NEW}} = 174.5 \pm 0.2 \pm 0.25$ GeV", fontsize=16,
-         transform=plt.gca().transAxes, verticalalignment='top',
-         bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.5', alpha=0.8))
-        
-        
         if output_path:
             plt.savefig(output_path + "_CV.pdf")
         
@@ -1020,14 +1013,7 @@ class combination:
             plt.xlim(0.0, eps_end)
             plt.grid(True)
             plt.tight_layout()
-            
-            
-            plt.text(0.02, 0.95, "Includes fictitious measurement:\n$m_{t}^{\mathrm{NEW}} = 174.5 \pm 0.2 \pm 0.25$ GeV", fontsize=16,
-         transform=plt.gca().transAxes, verticalalignment='top',
-         bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.5', alpha=0.8))
-         
-         
-            
+                        
             if output_path:
                 plt.savefig(output_path + "_CI" + ".pdf")
         
