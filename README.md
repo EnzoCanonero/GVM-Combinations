@@ -17,6 +17,13 @@ print("mu hat:", comb.fit_results['mu'])
 
 print("68% CI:", comb.confidence_interval())
 print("Goodness of fit:", comb.goodness_of_fit())
+
+# access a dictionary with all input values
+info = comb.input_summary()
+
+# modify the input and update the combination
+info['central']['ATLAS'] = 173.4
+comb.update_inputs(info)
 ```
 
 Only the construction of the likelihood, numerical minimisation and the
