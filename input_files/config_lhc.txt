@@ -22,7 +22,7 @@ Number of systematics = 25
 LHCJES1 0.0 input_files/correlations/LHCJES1.txt
 LHCJES2 0.0 input_files/correlations/LHCJES2.txt
 LHCJES3 0.0 input_files/correlations/LHCJES3.txt
-LHCbJES 0.6 input_files/correlations/LHCbJES.txt
+LHCbJES 0.01 input_files/correlations/LHCbJES.txt
 LHCgJES 0.0 input_files/correlations/LHCgJES.txt
 LHClJES 0.0 input_files/correlations/LHClJES.txt
 CMSJES 0.0 input_files/correlations/CMSJES.txt
