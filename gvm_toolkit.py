@@ -32,7 +32,7 @@ class GVMCombination:
         self.fit_results = self.minimize()
 
     # ------------------------------------------------------------------
-    def input_summary(self):
+    def input_data(self):
         """Return dictionaries summarising the combination input.
 
         The returned dictionary contains the following keys:
@@ -95,7 +95,7 @@ class GVMCombination:
         return out
 
     # ------------------------------------------------------------------
-    def update_inputs(self, info):
+    def update_data(self, info):
         """Update combination input from a summary dictionary.
 
         ``info`` should follow the same structure as returned by
@@ -116,11 +116,6 @@ class GVMCombination:
             }
             errors.update(info.get('stat_error', {}))
             if 'stat_corr' in info:
-                for (a, b), rho in info['stat_corr'].items():
-                    if a == b:
-                        continue
-                    if (b, a) not in info['stat_corr'] or info['stat_corr'][(b, a)] != rho:
-                        raise ValueError('stat_corr must be symmetric')
                 cov = np.zeros((n, n), float)
                 for m in self.measurements:
                     cov[idx[m], idx[m]] = errors[m] ** 2
@@ -144,11 +139,6 @@ class GVMCombination:
         if 'syst_corr' in info:
             for sname, corr_map in info['syst_corr'].items():
                 mat = self.corr.get(sname, np.eye(len(self.measurements)))
-                for (a, b), rho in corr_map.items():
-                    if a == b:
-                        continue
-                    if (b, a) not in corr_map or corr_map[(b, a)] != rho:
-                        raise ValueError(f'syst_corr for {sname} must be symmetric')
                 for (m1, m2), rho in corr_map.items():
                     i, j = idx[m1], idx[m2]
                     mat[i, j] = mat[j, i] = float(rho)
