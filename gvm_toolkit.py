@@ -38,7 +38,7 @@ class GVMCombination:
             'data': {}
         }
         section = None
-        data_rows = []
+        syst_rows = []
         with open(path, 'r') as f:
             for line in f:
                 line = line.strip()
@@ -55,6 +55,15 @@ class GVMCombination:
                     elif line.lower().startswith('measurement names'):
                         names = line.split('=', 1)[1]
                         cfg['measurements'] = names.replace(',', ' ').split()
+                elif section == 'combination data':
+                    if line.lower().startswith('measurement central values'):
+                        vals = line.split('=', 1)[1]
+                        cfg['central'] = [float(x) for x in vals.replace(',', ' ').split()]
+                    elif line.lower().startswith('measurement stat errors'):
+                        vals = line.split('=', 1)[1]
+                        cfg['stat'] = [float(x) for x in vals.replace(',', ' ').split()]
+                    elif line.lower().startswith('measurement stat covariance'):
+                        cfg['stat_cov'] = line.split('=', 1)[1].strip()
                 elif section == 'systematics setup':
                     if line.lower().startswith('number of systematics'):
                         cfg['n_syst'] = int(line.split('=', 1)[1])
@@ -64,24 +73,39 @@ class GVMCombination:
                         eps = float(parts[1])
                         path = parts[2] if len(parts) > 2 else None
                         cfg['systematics'][name] = {'epsilon': eps, 'path': path}
-                elif section == 'data':
-                    data_rows.append([float(x) for x in line.split()])
+                elif section == 'systematics data':
+                    syst_rows.append([float(x) for x in line.split()])
 
-        n_meas = cfg.get('n_meas', len(data_rows))
+        n_meas = cfg.get('n_meas', len(syst_rows))
         n_syst = cfg.get('n_syst', len(cfg['systematics']))
-        if len(data_rows) != n_meas:
-            raise ValueError('Expected %d measurements, found %d' %
-                             (n_meas, len(data_rows)))
-        for row in data_rows:
-            if len(row) != 2 + n_syst:
-                raise ValueError('Data rows must have %d columns' % (2 + n_syst))
 
-        central = [r[0] for r in data_rows]
-        stat = [r[1] for r in data_rows]
-        syst = {}
+        if 'central' not in cfg:
+            raise ValueError('Measurement central values are required')
+        if len(cfg['central']) != n_meas:
+            raise ValueError('Expected %d central values, found %d' % (n_meas, len(cfg['central'])))
+        central = cfg['central']
+
+        if 'stat' in cfg and 'stat_cov' in cfg:
+            raise ValueError('Specify either stat errors or stat covariance, not both')
+        if 'stat_cov' in cfg:
+            stat = np.loadtxt(cfg['stat_cov'], dtype=float)
+            if stat.shape != (n_meas, n_meas):
+                raise ValueError('Stat covariance must be %dx%d' % (n_meas, n_meas))
+        elif 'stat' in cfg:
+            if len(cfg['stat']) != n_meas:
+                raise ValueError('Expected %d stat errors, found %d' % (n_meas, len(cfg['stat'])))
+            stat = cfg['stat']
+        else:
+            raise ValueError('Measurement stat errors or covariance required')
+
+        if len(syst_rows) != n_meas:
+            raise ValueError('Expected %d systematic rows, found %d' % (n_meas, len(syst_rows)))
+        for row in syst_rows:
+            if len(row) != n_syst:
+                raise ValueError('Systematic rows must have %d columns' % n_syst)
+
         names = list(cfg['systematics'].keys())
-        for i, name in enumerate(names):
-            syst[name] = [r[2 + i] for r in data_rows]
+        syst = {name: [row[i] for row in syst_rows] for i, name in enumerate(names)}
         cfg['data'] = {'central': central, 'stat': stat, 'systematics': syst}
         return cfg
 
