@@ -12,7 +12,7 @@ Measurement names = a b c d e f g h i j k l m n o
 # Measurement central values = <v1> <v2> ...
 # Either Measurement stat errors = e1 e2 ... or Measurement stat covariance = <path>
 Measurement central values = 173.79 172.33 175.06 172.99 172.08 173.72 172.50 173.49 173.49 172.22 172.35 172.32 172.95 173.50 173.68
-Measurement stat errors = 0.54 0.75 1.35 0.41 0.39 0.55 0.43 0.43 0.69 0.18 0.16 0.25 0.77 3.00 0.20
+Measurement stat covariance = input_files/correlations/stat_cov_lhc.txt
 
 &Systematics setup
 # Format:
