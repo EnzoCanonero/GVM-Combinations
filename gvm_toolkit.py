@@ -1,79 +1,6 @@
 import numpy as np
 from iminuit import Minuit
 
-
-def load_data_file(file_path):
-    """Load measurements and uncertainties from a simple text file.
-
-    The file should contain one entry per line with the format::
-
-        name value1 value2 ...
-
-    The entry labelled ``data`` contains the central values while ``stat``
-    provides the statistical uncertainties.  All other lines are interpreted
-    as systematic uncertainties.  A line labelled ``total`` is ignored.
-
-    Parameters
-    ----------
-    file_path : str
-        Path to the text file.
-
-    Returns
-    -------
-    tuple
-        ``(data, stat, systematics)`` where ``systematics`` is a dictionary
-        mapping the source name to an array of uncertainties.
-    """
-
-    data = None
-    stat = None
-    syst = {}
-    with open(file_path, "r") as f:
-        for line in f:
-            parts = line.strip().split()
-            if not parts:
-                continue
-            name, values = parts[0], np.array(list(map(float, parts[1:])))
-            lname = name.lower()
-            if lname in {"data", "mt"}:
-                data = values
-            elif lname == "stat":
-                stat = values
-            elif lname == "total":
-                continue
-            else:
-                syst[name] = values
-    return data, stat, syst
-
-
-def load_correlation_matrix(file_path, name, correlations=None):
-    """Load a correlation matrix from ``file_path``.
-
-    If ``correlations`` is provided, it is updated in-place with the new
-    matrix and returned.  Otherwise a new dictionary ``{name: matrix}`` is
-    created and returned.
-
-    Parameters
-    ----------
-    file_path : str
-        Path to the matrix file.
-    name : str
-        Name of the systematic uncertainty.
-    correlations : dict, optional
-        Dictionary to update with the loaded matrix.
-
-    Returns
-    -------
-    dict
-        The updated dictionary of correlation matrices.
-    """
-
-    matrix = np.loadtxt(file_path, dtype=float)
-    if correlations is None:
-        correlations = {}
-    correlations[name] = matrix
-    return correlations
-
 class GVMCombination:
     """General combination tool using the Gamma Variance model."""
 
@@ -378,42 +305,6 @@ class GVMCombination:
         return 2 * (nll_mu - nll_best)
 
     # ------------------------------------------------------------------
-    def goodness_of_fit(self, mu=None, thetas=None):
-        """Return the goodness-of-fit ``-2 * nll``.
-
-        Parameters
-        ----------
-        mu : float, optional
-            Mean parameter.  If ``None`` use the fitted value.
-        thetas : array-like, optional
-            Nuisance parameters.  If ``None`` use the fitted values.
-        """
-        fit = self.fit_results if self.fit_results else self.minimize()
-        if mu is None:
-            mu = fit['mu']
-        if thetas is None:
-            thetas = fit['thetas']
-
-        # ``fit['thetas']`` is stored as a flat array.  Split it into one
-        # array per systematic before calling ``nll``.  Handle the case
-        # where no nuisance parameters are present.
-        thetas = np.asarray(thetas)
-        if thetas.size == 0:
-            q = 2 * self.nll(mu)
-            _, b_chi2 = self.bartlett_correction()
-            return q / b_chi2
-        if not isinstance(thetas[0], (list, np.ndarray)):
-            keys = list(self.C_inv.keys())
-            sizes = [self.C_inv[k].shape[0] for k in keys]
-            idx = np.cumsum([0] + sizes)
-            thetas = [np.asarray(thetas[idx[i]:idx[i+1]])
-                      for i in range(len(keys))]
-
-        q = 2 * self.nll(mu, *thetas)
-        _, b_chi2 = self.bartlett_correction()
-        return q / b_chi2
-
-    # ------------------------------------------------------------------
     def compute_FIM(self, S=None):
         keys = list(self.C_inv.keys())
         sizes = [self.C_inv[k].shape[0] for k in keys]
@@ -530,3 +421,39 @@ class GVMCombination:
             step /= 2
             it += 1
         return down, up, 0.5*(up - down)
+    
+    # ------------------------------------------------------------------
+    def goodness_of_fit(self, mu=None, thetas=None):
+        """Return the goodness-of-fit ``-2 * nll``.
+
+        Parameters
+        ----------
+        mu : float, optional
+            Mean parameter.  If ``None`` use the fitted value.
+        thetas : array-like, optional
+            Nuisance parameters.  If ``None`` use the fitted values.
+        """
+        fit = self.fit_results if self.fit_results else self.minimize()
+        if mu is None:
+            mu = fit['mu']
+        if thetas is None:
+            thetas = fit['thetas']
+
+        # ``fit['thetas']`` is stored as a flat array.  Split it into one
+        # array per systematic before calling ``nll``.  Handle the case
+        # where no nuisance parameters are present.
+        thetas = np.asarray(thetas)
+        if thetas.size == 0:
+            q = 2 * self.nll(mu)
+            _, b_chi2 = self.bartlett_correction()
+            return q * (len(self.y) - 1) / b_chi2
+        if not isinstance(thetas[0], (list, np.ndarray)):
+            keys = list(self.C_inv.keys())
+            sizes = [self.C_inv[k].shape[0] for k in keys]
+            idx = np.cumsum([0] + sizes)
+            thetas = [np.asarray(thetas[idx[i]:idx[i+1]])
+                      for i in range(len(keys))]
+
+        q = 2 * self.nll(mu, *thetas)
+        _, b_chi2 = self.bartlett_correction()
+        return q * (len(self.y) - 1) / b_chi2
