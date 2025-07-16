@@ -24,16 +24,7 @@ class GVMCombination:
         for k, info in cfg['systematics'].items():
             path = info['path']
             if path:
-                mat = np.loadtxt(path, dtype=float)
-                if not np.allclose(mat, mat.T, rtol=1e-7, atol=1e-8):
-                    diff = np.argwhere(~np.isclose(mat, mat.T, rtol=1e-7, atol=1e-8))
-                    for i, j in diff:
-                        if i < j:
-                            warnings.warn(
-                                f'Correlation matrix "{k}" asymmetric for measurements '
-                                f'{self.measurements[i]} and {self.measurements[j]}: '
-                                f'{mat[i, j]} vs {mat[j, i]}')
-                self.corr[k] = mat
+                self.corr[k] = np.loadtxt(path, dtype=float)
             else:
                 self.corr[k] = np.eye(len(self.y))
 
@@ -42,7 +33,7 @@ class GVMCombination:
             if info['epsilon'] != 0.0
         }
 
-        self._validate_dimensions()
+        self._validate_combination()
 
         self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
         self.fit_results = self.minimize()
@@ -117,8 +108,8 @@ class GVMCombination:
         return cfg
 
     # ------------------------------------------------------------------
-    def _validate_dimensions(self):
-        """Validate internal array dimensions against ``n_meas`` and ``n_syst``."""
+    def _validate_combination(self):
+        """Validate consistency of the combination inputs."""
         if len(self.measurements) != self.n_meas:
             raise ValueError(
                 f'Expected {self.n_meas} measurements, got {len(self.measurements)}')
@@ -155,6 +146,13 @@ class GVMCombination:
             if mat.shape != (self.n_meas, self.n_meas):
                 raise ValueError(
                     f'Correlation matrix {name} must be {self.n_meas}x{self.n_meas}')
+            diff = np.argwhere(~np.isclose(mat, mat.T, rtol=1e-7, atol=1e-8))
+            for i, j in diff:
+                if i < j:
+                    warnings.warn(
+                        f'Correlation matrix "{name}" asymmetric for measurements '
+                        f'{self.measurements[i]} and {self.measurements[j]}: '
+                        f'{mat[i, j]} vs {mat[j, i]}')
 
     # ------------------------------------------------------------------
     def _reduce_corr(self, rho, src_name=None):
@@ -493,7 +491,7 @@ class GVMCombination:
                 else:
                     self.uncertain_systematics[s] = e
 
-        self._validate_dimensions()
+        self._validate_combination()
 
         # Recompute matrices and refit after updates
         self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
