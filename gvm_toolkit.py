@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import yaml
 from iminuit import Minuit
 
 class GVMCombination:
@@ -167,6 +168,9 @@ class GVMCombination:
         from the first non-comment line.
         """
 
+        if path.endswith(('.yaml', '.yml')):
+            return self._parse_config_yaml(path)
+
         with open(path, "r") as f:
             lines = [ln.rstrip() for ln in f]
 
@@ -179,6 +183,66 @@ class GVMCombination:
             break
 
         return self._parse_config_legacy(lines, os.path.dirname(path))
+
+    # ------------------------------------------------------------------
+    def _parse_config_yaml(self, path):
+        base_dir = os.path.dirname(path)
+        with open(path, 'r') as f:
+            data = yaml.safe_load(f)
+
+        cfg = {'systematics': {}}
+        glob = data.get('globals', {})
+        corr_dir = glob.get('corr_dir', '')
+        stat_cov_dir = glob.get('stat_cov_dir', '')
+
+        combo = data.get('combination', {})
+        cfg['name'] = combo.get('name', '')
+        meas_entries = combo.get('measurements', [])
+        labels, central, stat_err = [], [], []
+        for m in meas_entries:
+            labels.append(m['label'])
+            central.append(float(m['central']))
+            if 'stat_error' in m:
+                stat_err.append(float(m['stat_error']))
+
+        stat_cov_path = combo.get('stat_cov_path')
+        if stat_cov_path:
+            stat_cov_path = stat_cov_path.replace('${globals.corr_dir}', corr_dir)
+            stat_cov_path = stat_cov_path.replace('${globals.stat_cov_dir}', stat_cov_dir)
+            if not os.path.isabs(stat_cov_path):
+                cand = os.path.join(base_dir, stat_cov_path)
+                if os.path.exists(cand):
+                    stat_cov_path = cand
+            stat = np.loadtxt(stat_cov_path, dtype=float)
+            if stat.shape != (len(labels), len(labels)):
+                raise ValueError('Stat covariance must be %dx%d' % (len(labels), len(labels)))
+        elif stat_err:
+            if len(stat_err) != len(labels):
+                raise ValueError(f'Expected {len(labels)} stat errors, found {len(stat_err)}')
+            stat = stat_err
+        else:
+            raise ValueError('Measurement stat errors or covariance required')
+
+        syst_values = {}
+        for item in data.get('systematics', []):
+            name = item['name']
+            shifts = [float(x) for x in item['shifts']]
+            if len(shifts) != len(labels):
+                raise ValueError(f'Systematic {name} must have {len(labels)} values')
+            path_corr = item.get('corr_file')
+            if path_corr:
+                path_corr = path_corr.replace('${globals.corr_dir}', corr_dir)
+                if corr_dir and not os.path.isabs(path_corr):
+                    path_corr = os.path.join(corr_dir, path_corr)
+            eps = float(item.get('epsilon', 0.0))
+            syst_values[name] = shifts
+            cfg['systematics'][name] = {'path': path_corr, 'epsilon': eps}
+
+        cfg['measurements'] = labels
+        cfg['n_meas'] = len(labels)
+        cfg['n_syst'] = len(syst_values)
+        cfg['data'] = {'central': central, 'stat': stat, 'systematics': syst_values}
+        return cfg
 
     # ------------------------------------------------------------------
     def _parse_config_ini(self, lines, base_dir):
