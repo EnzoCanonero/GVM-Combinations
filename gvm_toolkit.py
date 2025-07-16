@@ -162,10 +162,6 @@ class GVMCombination:
     def _parse_config(self, path):
         """Parse a YAML configuration file."""
 
-        return self._parse_config_yaml(path)
-
-    # ------------------------------------------------------------------
-    def _parse_config_yaml(self, path):
         base_dir = os.path.dirname(path)
         with open(path, 'r') as f:
             data = yaml.safe_load(f)
