@@ -32,6 +32,17 @@ analytical Bartlett correction are implemented.  Plotting routines and code
 specific to the top-quark mass combination were removed to keep the toolkit
 lightweight and general.
 
+## Setup
+
+The toolkit requires a few Python packages.  A simple setup script is
+provided to install them all::
+
+    ./setup.sh
+
+This installs the dependencies listed in ``requirements.txt`` using
+``pip``.  You may also run ``pip install -r requirements.txt`` directly
+if preferred.
+
 ## Configuration File
 
 The combination is driven by a YAML configuration file with three main
