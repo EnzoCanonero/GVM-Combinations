@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from iminuit import Minuit
 
@@ -158,48 +159,170 @@ class GVMCombination:
 
     # ------------------------------------------------------------------
     def _parse_config(self, path):
+        """Parse a configuration file.
+
+        The toolkit understands two formats.  The original format used
+        ``&Section`` headers, while the newer format is an INI style with
+        ``[Section]`` headers.  The parser automatically detects the format
+        from the first non-comment line.
+        """
+
+        with open(path, "r") as f:
+            lines = [ln.rstrip() for ln in f]
+
+        for ln in lines:
+            s = ln.strip()
+            if not s or s.startswith("#"):
+                continue
+            if s.startswith("["):
+                return self._parse_config_ini(lines, os.path.dirname(path))
+            break
+
+        return self._parse_config_legacy(lines)
+
+    # ------------------------------------------------------------------
+    def _parse_config_ini(self, lines, base_dir):
+        cfg = {"systematics": {}, "data": {}}
+        section = None
+        meas = []
+        central = []
+        stat_err = []
+        syst_values = {}
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("[") and line.endswith("]"):
+                section = line[1:-1].strip().lower()
+                continue
+            if section == "globals":
+                if "=" in line:
+                    key, val = [x.strip() for x in line.split("=", 1)]
+                    key = key.lower().replace(" ", "_")
+                    if key in ("combination_name", "name"):
+                        cfg["name"] = val
+                    elif key == "corr_dir":
+                        cfg["corr_dir"] = val
+                    elif key in ("number_of_measurements", "umber_of_measurements"):
+                        cfg["n_meas"] = int(val)
+                    elif key == "number_of_systematics":
+                        cfg["n_syst"] = int(val)
+            elif section == "data":
+                if line.startswith("stat_cov_path"):
+                    cfg["stat_cov"] = line.split("=", 1)[1].strip()
+                else:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        meas.append(parts[0])
+                        central.append(float(parts[1]))
+                        if len(parts) >= 3:
+                            stat_err.append(float(parts[2]))
+            elif section == "systematics setup":
+                parts = line.split()
+                name = parts[0]
+                vals = [float(x) for x in parts[1:]]
+                syst_values[name] = vals
+            elif section == "syst correlations":
+                parts = line.split()
+                name = parts[0]
+                path = parts[1]
+                if "corr_dir" in cfg and not os.path.isabs(path):
+                    path = os.path.join(cfg["corr_dir"], path)
+                cfg.setdefault("systematics", {}).setdefault(name, {})["path"] = path
+            elif section == "errors-on-errors":
+                parts = line.split()
+                name = parts[0]
+                eps = float(parts[1])
+                cfg.setdefault("systematics", {}).setdefault(name, {})["epsilon"] = eps
+
+        cfg["measurements"] = meas
+        cfg["central"] = central
+        if stat_err:
+            cfg["stat"] = stat_err
+
+        n_meas = cfg.get("n_meas", len(meas))
+        n_syst = cfg.get("n_syst", len(syst_values))
+
+        if len(central) != n_meas:
+            raise ValueError(f"Expected {n_meas} central values, found {len(central)}")
+
+        if "stat" in cfg and "stat_cov" in cfg:
+            raise ValueError("Specify either stat errors or stat covariance, not both")
+        if "stat_cov" in cfg:
+            path = cfg["stat_cov"]
+            stat = np.loadtxt(path, dtype=float)
+            if stat.shape != (n_meas, n_meas):
+                raise ValueError("Stat covariance must be %dx%d" % (n_meas, n_meas))
+        elif "stat" in cfg:
+            if len(cfg["stat"]) != n_meas:
+                raise ValueError(f"Expected {n_meas} stat errors, found {len(cfg['stat'])}")
+            stat = cfg["stat"]
+        else:
+            raise ValueError("Measurement stat errors or covariance required")
+
+        for name, vals in syst_values.items():
+            if len(vals) != n_meas:
+                raise ValueError(f"Systematic {name} must have {n_meas} values")
+
+        if n_syst != len(syst_values):
+            raise ValueError(f"Expected {n_syst} systematics, found {len(syst_values)}")
+
+        cfg_data = {
+            "central": central,
+            "stat": stat,
+            "systematics": syst_values,
+        }
+        cfg["data"] = cfg_data
+
+        for name in syst_values:
+            cfg.setdefault("systematics", {}).setdefault(name, {"epsilon": 0.0, "path": None})
+            if "epsilon" not in cfg["systematics"][name]:
+                cfg["systematics"][name]["epsilon"] = 0.0
+        return cfg
+
+    # ------------------------------------------------------------------
+    def _parse_config_legacy(self, lines):
         cfg = {
             'systematics': {},
             'data': {}
         }
         section = None
         syst_rows = []
-        with open(path, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith('#'):
-                    continue
-                if line.startswith('&'):
-                    section = line[1:].strip().lower()
-                    continue
-                if section == 'combination setup':
-                    if line.lower().startswith('combination name'):
-                        cfg['name'] = line.split('=', 1)[1].strip()
-                    elif line.lower().startswith('number of measurements'):
-                        cfg['n_meas'] = int(line.split('=', 1)[1])
-                    elif line.lower().startswith('measurement names'):
-                        names = line.split('=', 1)[1]
-                        cfg['measurements'] = names.replace(',', ' ').split()
-                elif section == 'combination data':
-                    if line.lower().startswith('measurement central values'):
-                        vals = line.split('=', 1)[1]
-                        cfg['central'] = [float(x) for x in vals.replace(',', ' ').split()]
-                    elif line.lower().startswith('measurement stat errors'):
-                        vals = line.split('=', 1)[1]
-                        cfg['stat'] = [float(x) for x in vals.replace(',', ' ').split()]
-                    elif line.lower().startswith('measurement stat covariance'):
-                        cfg['stat_cov'] = line.split('=', 1)[1].strip()
-                elif section == 'systematics setup':
-                    if line.lower().startswith('number of systematics'):
-                        cfg['n_syst'] = int(line.split('=', 1)[1])
-                    else:
-                        parts = line.split()
-                        name = parts[0]
-                        eps = float(parts[1])
-                        path = parts[2] if len(parts) > 2 else None
-                        cfg['systematics'][name] = {'epsilon': eps, 'path': path}
-                elif section == 'systematics data':
-                    syst_rows.append([float(x) for x in line.split()])
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            if line.startswith('&'):
+                section = line[1:].strip().lower()
+                continue
+            if section == 'combination setup':
+                if line.lower().startswith('combination name'):
+                    cfg['name'] = line.split('=', 1)[1].strip()
+                elif line.lower().startswith('number of measurements'):
+                    cfg['n_meas'] = int(line.split('=', 1)[1])
+                elif line.lower().startswith('measurement names'):
+                    names = line.split('=', 1)[1]
+                    cfg['measurements'] = names.replace(',', ' ').split()
+            elif section == 'combination data':
+                if line.lower().startswith('measurement central values'):
+                    vals = line.split('=', 1)[1]
+                    cfg['central'] = [float(x) for x in vals.replace(',', ' ').split()]
+                elif line.lower().startswith('measurement stat errors'):
+                    vals = line.split('=', 1)[1]
+                    cfg['stat'] = [float(x) for x in vals.replace(',', ' ').split()]
+                elif line.lower().startswith('measurement stat covariance'):
+                    cfg['stat_cov'] = line.split('=', 1)[1].strip()
+            elif section == 'systematics setup':
+                if line.lower().startswith('number of systematics'):
+                    cfg['n_syst'] = int(line.split('=', 1)[1])
+                else:
+                    parts = line.split()
+                    name = parts[0]
+                    eps = float(parts[1])
+                    path = parts[2] if len(parts) > 2 else None
+                    cfg['systematics'][name] = {'epsilon': eps, 'path': path}
+            elif section == 'systematics data':
+                syst_rows.append([float(x) for x in line.split()])
 
         n_meas = cfg.get('n_meas', len(syst_rows))
         n_syst = cfg.get('n_syst', len(cfg['systematics']))
