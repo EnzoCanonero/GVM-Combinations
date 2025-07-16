@@ -178,7 +178,7 @@ class GVMCombination:
                 return self._parse_config_ini(lines, os.path.dirname(path))
             break
 
-        return self._parse_config_legacy(lines)
+        return self._parse_config_legacy(lines, os.path.dirname(path))
 
     # ------------------------------------------------------------------
     def _parse_config_ini(self, lines, base_dir):
@@ -209,7 +209,12 @@ class GVMCombination:
                         cfg["n_syst"] = int(val)
             elif section == "data":
                 if line.startswith("stat_cov_path"):
-                    cfg["stat_cov"] = line.split("=", 1)[1].strip()
+                    p = line.split("=", 1)[1].strip()
+                    if not os.path.isabs(p):
+                        cand = os.path.join(base_dir, p)
+                        if os.path.exists(cand):
+                            p = cand
+                    cfg["stat_cov"] = p
                 else:
                     parts = line.split()
                     if len(parts) >= 2:
@@ -281,7 +286,7 @@ class GVMCombination:
         return cfg
 
     # ------------------------------------------------------------------
-    def _parse_config_legacy(self, lines):
+    def _parse_config_legacy(self, lines, base_dir):
         cfg = {
             'systematics': {},
             'data': {}
@@ -311,7 +316,12 @@ class GVMCombination:
                     vals = line.split('=', 1)[1]
                     cfg['stat'] = [float(x) for x in vals.replace(',', ' ').split()]
                 elif line.lower().startswith('measurement stat covariance'):
-                    cfg['stat_cov'] = line.split('=', 1)[1].strip()
+                    p = line.split('=', 1)[1].strip()
+                    if not os.path.isabs(p):
+                        cand = os.path.join(base_dir, p)
+                        if os.path.exists(cand):
+                            p = cand
+                    cfg['stat_cov'] = p
             elif section == 'systematics setup':
                 if line.lower().startswith('number of systematics'):
                     cfg['n_syst'] = int(line.split('=', 1)[1])
