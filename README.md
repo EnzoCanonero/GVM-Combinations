@@ -11,7 +11,7 @@ using an analytic Bartlett correction.
 from gvm_toolkit import GVMCombination
 
 # create the combination directly from a configuration file
-comb = GVMCombination("input_files/config_lhc.txt")
+comb = GVMCombination("input_files/LHC_mass_combination.yaml")
 
 print("mu hat:", comb.fit_results['mu'])
 
@@ -34,23 +34,17 @@ lightweight and general.
 
 ## Configuration File
 
-The combination is driven by a plain text configuration file in INI format.
-Blank lines and any text after a ``#`` character are ignored.  The file uses
-five sections:
+The combination is driven by a YAML configuration file with three main
+sections:
 
-* **[Globals]** – contains general metadata.
-  - ``corr_dir``: directory holding correlation matrices.
-  - ``combination_name``: a short label for the combination.
-  - ``number_of_measurements`` and ``number_of_systematics`` give the expected
-    matrix dimensions.
-* **[Data]** – lists each measurement in the form ``name  value [stat_err]``.
-  When a full statistical covariance matrix is provided the third column is
-  omitted and ``stat_cov_path = <file>`` is added.
-* **[Systematics Setup]** – one line per systematic with the uncertainty for
-  each measurement.
-* **[Syst Correlations]** – maps systematic names to the correlation files in
-  ``corr_dir``.
-* **[Errors-on-Errors]** – optional error-on-error values for each systematic.
+* ``globals`` – directories containing correlation matrices and statistical
+  covariance files.
+* ``combination`` – the measurement names and central values.  Each entry may
+  include a ``stat_error`` field or the section may define ``stat_cov_path``
+  pointing to a covariance matrix.
+* ``systematics`` – list of systematics with their shift vectors, associated
+  correlation matrix file and optional ``epsilon`` error-on-error value.
 
-See ``input_files/config_lhc.txt`` for a complete example using statistical errors.
-``input_files/config_lhc_cov.txt`` shows the equivalent setup with a statistical covariance matrix.
+See ``input_files/LHC_mass_combination.yaml`` for a complete example using
+statistical errors.  ``input_files/LHC_mass_combination_cov.yaml`` shows the
+equivalent setup with a statistical covariance matrix.
