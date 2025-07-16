@@ -2,6 +2,7 @@ import os
 import numpy as np
 import yaml
 from iminuit import Minuit
+import warnings
 
 class GVMCombination:
     """General combination tool using the Gamma Variance model."""
@@ -21,7 +22,16 @@ class GVMCombination:
         for k, info in cfg['systematics'].items():
             path = info['path']
             if path:
-                self.corr[k] = np.loadtxt(path, dtype=float)
+                mat = np.loadtxt(path, dtype=float)
+                if not np.allclose(mat, mat.T, rtol=1e-7, atol=1e-8):
+                    diff = np.argwhere(~np.isclose(mat, mat.T, rtol=1e-7, atol=1e-8))
+                    for i, j in diff:
+                        if i < j:
+                            warnings.warn(
+                                f'Correlation matrix "{k}" asymmetric for measurements '
+                                f'{self.measurements[i]} and {self.measurements[j]}: '
+                                f'{mat[i, j]} vs {mat[j, i]}')
+                self.corr[k] = mat
             else:
                 self.corr[k] = np.eye(len(self.y))
 
@@ -67,6 +77,13 @@ class GVMCombination:
             stat = np.loadtxt(stat_cov_path, dtype=float)
             if stat.shape != (len(labels), len(labels)):
                 raise ValueError('Stat covariance must be %dx%d' % (len(labels), len(labels)))
+            if not np.allclose(stat, stat.T, rtol=1e-7, atol=1e-8):
+                diff = np.argwhere(~np.isclose(stat, stat.T, rtol=1e-7, atol=1e-8))
+                for i, j in diff:
+                    if i < j:
+                        warnings.warn(
+                            f'Stat covariance asymmetric for measurements {labels[i]} and {labels[j]}: '
+                            f'{stat[i, j]} vs {stat[j, i]}')
         elif stat_err:
             if len(stat_err) != len(labels):
                 raise ValueError(f'Expected {len(labels)} stat errors, found {len(stat_err)}')
@@ -96,7 +113,7 @@ class GVMCombination:
         return cfg
 
     # ------------------------------------------------------------------
-    def _reduce_corr(self, rho):
+    def _reduce_corr(self, rho, src_name=None):
         n = rho.shape[0]
         groups = []
         visited = set()
@@ -130,7 +147,12 @@ class GVMCombination:
         eig = np.linalg.eigvalsh(reduced)
         m = eig.min()
         if m <= 0:
-            np.fill_diagonal(reduced, reduced.diagonal() + abs(m) + 0.01)
+            offset = abs(m) + 0.01
+            np.fill_diagonal(reduced, reduced.diagonal() + offset)
+            if src_name:
+                warnings.warn(
+                    f'Negative eigenvalue {m:.4e} in systematic "{src_name}"; '
+                    f'adding {offset:.4e} to diagonal for regularisation.')
         return reduced, Gamma
 
     # ------------------------------------------------------------------
@@ -153,7 +175,7 @@ class GVMCombination:
         for src, sigma in self.syst.items():
             if src in self.uncertain_systematics:
                 rho = self.corr[src]
-                red, Gamma = self._reduce_corr(rho)
+                red, Gamma = self._reduce_corr(rho, src_name=src)
                 for i in range(Gamma.shape[0]):
                     for j in range(Gamma.shape[1]):
                         if Gamma[i, j] != 0:
