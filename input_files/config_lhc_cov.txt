@@ -1,65 +1,109 @@
-&Combination setup
-# Format:
-# Combination Name = <string>
-# Number of Measurements = <int>
-# Measurement names = <label1> <label2> ...
-Combination Name = LHC
-Number of Measurements = 15
-Measurement names = a b c d e f g h i j k l m n o
+[Globals]
+corr_dir      = input_files/correlations/
+combination_name       = LHC
+number_of_measurements = 15
+number_of_systematics = 25
 
-&Combination data
-# Format:
-# Measurement central values = <v1> <v2> ...
-# Either Measurement stat errors = e1 e2 ... or Measurement stat covariance = <path>
-Measurement central values = 173.79 172.33 175.06 172.99 172.08 173.72 172.50 173.49 173.49 172.22 172.35 172.32 172.95 173.50 173.68
-Measurement stat covariance = input_files/correlations/stat_cov_lhc.txt
+[Data]
+#  Columns:  name   central_value
+a  173.79
+b  172.33
+c  175.06
+d  172.99
+e  172.08
+f  173.72
+g  172.50
+h  173.49
+i  173.49
+j  172.22
+k  172.35
+l  172.32
+m  172.95
+n  173.50
+o  173.68
 
-&Systematics setup
-# Format:
-# Number of systematics = <int>
-# Each following line: <name> <epsilon> [path-to-correlation]
-Number of systematics = 25
-LHCJES1 0.0 input_files/correlations/LHCJES1.txt
-LHCJES2 0.0 input_files/correlations/LHCJES2.txt
-LHCJES3 0.0 input_files/correlations/LHCJES3.txt
-LHCbJES 0.6 input_files/correlations/LHCbJES.txt
-LHCgJES 0.0 input_files/correlations/LHCgJES.txt
-LHClJES 0.0 input_files/correlations/LHClJES.txt
-CMSJES 0.0 input_files/correlations/CMSJES.txt
-JER 0.0 input_files/correlations/JER.txt
-leptons 0.0 input_files/correlations/leptons.txt
-btag 0.0 input_files/correlations/btag.txt
-ptmiss 0.0 input_files/correlations/ptmiss.txt
-pileup 0.0 input_files/correlations/pileup.txt
-trigger 0.0 input_files/correlations/trigger.txt
-ME 0.0 input_files/correlations/ME.txt
-LHCrad 0.0 input_files/correlations/LHCrad.txt
-LHChad 0.0 input_files/correlations/LHChad.txt
-CMSbHad 0.0 input_files/correlations/CMSbHad.txt
-CR 0.0 input_files/correlations/CR.txt
-UE 0.0 input_files/correlations/UE.txt
-PDF 0.0 input_files/correlations/PDF.txt
-topPT 0.0 input_files/correlations/topPT.txt
-bkgData 0.0 input_files/correlations/bkgData.txt
-bkgMC 0.0 input_files/correlations/bkgMC.txt
-method 0.0 input_files/correlations/method.txt
-other 0.0 input_files/correlations/other.txt
+stat_cov_path = input_files/correlations/stat_cov_lhc.txt
 
-&Systematics data
-# Format:
-# <syst1> <syst2> ...
-0.54 0.30 0.43 0.68 0.03 0.02 0.00 0.19 0.13 0.07 0.04 0.01 0.01 0.26 0.47 0.53 0.00 0.14 0.05 0.10 0.00 0.04 0.01 0.09 0.07
-0.33 0.30 0.07 0.06 0.28 0.24 0.00 0.22 0.04 0.50 0.15 0.02 0.00 0.22 0.32 0.18 0.00 0.11 0.15 0.25 0.00 0.11 0.29 0.11 0.12
-0.38 0.20 0.24 0.62 0.10 0.02 0.00 0.01 0.00 0.16 0.02 0.02 0.01 0.30 0.22 0.50 0.00 0.22 0.08 0.09 0.00 0.35 0.00 0.42 0.24
-0.35 0.41 0.08 0.30 0.02 0.01 0.00 0.09 0.14 0.04 0.01 0.05 0.00 0.09 0.23 0.22 0.00 0.03 0.10 0.05 0.00 0.07 0.03 0.05 0.02
-0.28 0.39 0.05 0.03 0.21 0.10 0.00 0.20 0.16 0.38 0.05 0.15 0.01 0.16 0.08 0.15 0.00 0.19 0.08 0.09 0.00 0.05 0.13 0.13 0.10
-0.40 0.42 0.12 0.34 0.05 0.06 0.00 0.10 0.01 0.10 0.01 0.01 0.08 0.18 0.10 0.64 0.00 0.12 0.12 0.09 0.00 0.17 0.00 0.11 0.03
-0.77 0.54 0.06 0.70 0.00 0.00 0.58 0.14 0.14 0.09 0.12 0.11 0.00 0.04 0.58 0.00 0.00 0.13 0.05 0.09 0.00 0.00 0.05 0.40 0.00
-0.24 0.02 0.01 0.61 0.00 0.00 0.11 0.23 0.02 0.12 0.06 0.07 0.00 0.02 0.30 0.00 0.00 0.54 0.15 0.07 0.00 0.00 0.13 0.06 0.00
-0.69 0.35 0.08 0.49 0.00 0.00 0.58 0.15 0.00 0.06 0.00 0.06 0.24 0.19 0.33 0.00 0.00 0.15 0.20 0.06 0.00 0.13 0.00 0.13 0.00
-0.31 0.17 0.03 0.37 0.07 0.04 0.00 0.00 0.25 0.01 0.01 0.05 0.00 0.07 0.24 0.38 0.12 0.13 0.11 0.17 0.51 0.00 0.00 0.00 0.03
-0.10 0.12 0.01 0.32 0.08 0.06 0.00 0.03 0.01 0.06 0.04 0.06 0.00 0.12 0.09 0.01 0.16 0.01 0.08 0.04 0.02 0.00 0.03 0.04 0.00
-0.16 0.19 0.02 0.29 0.02 0.01 0.00 0.02 0.00 0.02 0.00 0.06 0.01 0.16 0.18 0.04 0.13 0.16 0.14 0.03 0.06 0.20 0.00 0.06 0.00
-0.40 0.21 0.05 0.38 0.00 0.07 0.00 0.05 0.05 0.10 0.15 0.14 0.00 0.00 0.35 0.00 0.15 0.05 0.20 0.11 0.00 0.00 0.17 0.39 0.25
-0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.00 0.10 0.00 0.00 0.07 0.02 0.37 0.74 0.30 0.00 0.12 0.13 0.11 0.00 0.00 0.01 0.22 0.09
-0.11 0.13 0.01 0.00 0.00 0.00 0.00 0.05 0.24 0.02 0.00 0.05 0.00 0.42 0.20 0.54 0.16 0.08 0.00 0.04 0.00 0.44 0.00 0.62 0.09
+[Systematics Setup]
+#  Columns:  name   <meas 1>   <meas 2>   ...
+LHCJES1       0.54   0.33   0.38   0.35   0.28   0.40   0.77   0.24   0.69   0.31   0.10   0.16   0.40   0.00   0.11
+LHCJES2       0.30   0.30   0.20   0.41   0.39   0.42   0.54   0.02   0.35   0.17   0.12   0.19   0.21   0.00   0.13
+LHCJES3       0.43   0.07   0.24   0.08   0.05   0.12   0.06   0.01   0.08   0.03   0.01   0.02   0.05   0.00   0.01
+LHCbJES       0.68   0.06   0.62   0.30   0.03   0.34   0.70   0.61   0.49   0.37   0.32   0.29   0.38   0.00   0.00
+LHCgJES       0.03   0.28   0.10   0.02   0.21   0.05   0.00   0.00   0.00   0.07   0.08   0.02   0.00   0.00   0.00
+LHClJES       0.02   0.24   0.02   0.01   0.10   0.06   0.00   0.00   0.00   0.04   0.06   0.01   0.07   0.00   0.00
+CMSJES        0.00   0.00   0.00   0.00   0.00   0.00   0.58   0.11   0.58   0.00   0.00   0.00   0.00   0.00   0.00
+JER           0.19   0.22   0.01   0.09   0.20   0.10   0.14   0.23   0.15   0.00   0.03   0.02   0.05   0.00   0.05
+leptons       0.13   0.04   0.00   0.14   0.16   0.01   0.14   0.02   0.00   0.25   0.01   0.00   0.05   0.10   0.24
+btag          0.07   0.50   0.16   0.04   0.38   0.10   0.09   0.12   0.06   0.01   0.06   0.02   0.10   0.00   0.02
+ptmiss        0.04   0.15   0.02   0.01   0.05   0.01   0.12   0.06   0.00   0.01   0.04   0.00   0.15   0.00   0.00
+pileup        0.01   0.02   0.02   0.05   0.15   0.01   0.11   0.07   0.06   0.05   0.06   0.06   0.14   0.07   0.05
+trigger       0.01   0.00   0.01   0.00   0.01   0.08   0.00   0.00   0.24   0.00   0.00   0.01   0.00   0.02   0.00
+ME            0.26   0.22   0.30   0.09   0.16   0.18   0.04   0.02   0.19   0.07   0.12   0.16   0.00   0.37   0.42
+LHCrad        0.47   0.32   0.22   0.23   0.08   0.10   0.58   0.30   0.33   0.24   0.09   0.18   0.35   0.74   0.20
+LHChad        0.53   0.18   0.50   0.22   0.15   0.64   0.00   0.00   0.00   0.38   0.01   0.04   0.00   0.30   0.54
+CMSbHad       0.00   0.00   0.00   0.00   0.00   0.00   0.00   0.00   0.00   0.12   0.16   0.13   0.15   0.00   0.16
+CR            0.14   0.11   0.22   0.03   0.19   0.12   0.13   0.54   0.15   0.13   0.01   0.16   0.05   0.12   0.08
+UE            0.05   0.15   0.08   0.10   0.08   0.12   0.05   0.15   0.20   0.11   0.08   0.14   0.20   0.13   0.00
+PDF           0.10   0.25   0.09   0.05   0.09   0.09   0.09   0.07   0.06   0.17   0.04   0.03   0.11   0.11   0.04
+topPT         0.00   0.00   0.00   0.00   0.00   0.00   0.00   0.00   0.00   0.51   0.02   0.06   0.00   0.00   0.00
+bkgData       0.04   0.11   0.35   0.07   0.05   0.17   0.00   0.00   0.13   0.00   0.00   0.20   0.00   0.00   0.44
+bkgMC         0.01   0.29   0.00   0.03   0.13   0.00   0.05   0.13   0.00   0.00   0.03   0.00   0.17   0.01   0.00
+method        0.09   0.11   0.42   0.05   0.13   0.11   0.40   0.06   0.13   0.00   0.04   0.06   0.39   0.22   0.62
+other         0.07   0.12   0.24   0.02   0.10   0.03   0.00   0.00   0.00   0.03   0.00   0.00   0.25   0.09   0.09
+
+[Syst Correlations]
+# Columns: name   corr_file (resolved via corr_dir)
+LHCJES1   LHCJES1.txt
+LHCJES2   LHCJES2.txt
+LHCJES3   LHCJES3.txt
+LHCbJES   LHCbJES.txt
+LHCgJES   LHCgJES.txt
+LHClJES   LHClJES.txt
+CMSJES    CMSJES.txt
+JER       JER.txt
+leptons   leptons.txt
+btag      btag.txt
+ptmiss    ptmiss.txt
+pileup    pileup.txt
+trigger   trigger.txt
+ME        ME.txt
+LHCrad    LHCrad.txt
+LHChad    LHChad.txt
+CMSbHad   CMSbHad.txt
+CR        CR.txt
+UE        UE.txt
+PDF       PDF.txt
+topPT     topPT.txt
+bkgData   bkgData.txt
+bkgMC     bkgMC.txt
+method    method.txt
+other     other.txt
+
+[Errors-on-Errors]
+# Columns: name   epsilon
+LHCJES1   0.00
+LHCJES2   0.00
+LHCJES3   0.00
+LHCbJES   0.01
+LHCgJES   0.00
+LHClJES   0.00
+CMSJES    0.00
+JER       0.00
+leptons   0.00
+btag      0.00
+ptmiss    0.00
+pileup    0.00
+trigger   0.00
+ME        0.00
+LHCrad    0.00
+LHChad    0.00
+CMSbHad   0.00
+CR        0.00
+UE        0.00
+PDF       0.00
+topPT     0.00
+bkgData   0.00
+bkgMC     0.00
+method    0.00
+other     0.00
