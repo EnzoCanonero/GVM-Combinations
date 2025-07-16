@@ -12,6 +12,8 @@ class GVMCombination:
 
         self.name = cfg['name']
         self.measurements = cfg['measurements']
+        self.n_meas = cfg['n_meas']
+        self.n_syst = cfg['n_syst']
         self.y = np.asarray(cfg['data']['central'], dtype=float)
         self.stat = np.asarray(cfg['data']['stat'], dtype=float)
 
@@ -22,16 +24,7 @@ class GVMCombination:
         for k, info in cfg['systematics'].items():
             path = info['path']
             if path:
-                mat = np.loadtxt(path, dtype=float)
-                if not np.allclose(mat, mat.T, rtol=1e-7, atol=1e-8):
-                    diff = np.argwhere(~np.isclose(mat, mat.T, rtol=1e-7, atol=1e-8))
-                    for i, j in diff:
-                        if i < j:
-                            warnings.warn(
-                                f'Correlation matrix "{k}" asymmetric for measurements '
-                                f'{self.measurements[i]} and {self.measurements[j]}: '
-                                f'{mat[i, j]} vs {mat[j, i]}')
-                self.corr[k] = mat
+                self.corr[k] = np.loadtxt(path, dtype=float)
             else:
                 self.corr[k] = np.eye(len(self.y))
 
@@ -39,6 +32,8 @@ class GVMCombination:
             k: info['epsilon'] for k, info in cfg['systematics'].items()
             if info['epsilon'] != 0.0
         }
+
+        self._validate_combination()
 
         self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
         self.fit_results = self.minimize()
@@ -111,6 +106,53 @@ class GVMCombination:
         cfg['n_syst'] = len(syst_values)
         cfg['data'] = {'central': central, 'stat': stat, 'systematics': syst_values}
         return cfg
+
+    # ------------------------------------------------------------------
+    def _validate_combination(self):
+        """Validate consistency of the combination inputs."""
+        if len(self.measurements) != self.n_meas:
+            raise ValueError(
+                f'Expected {self.n_meas} measurements, got {len(self.measurements)}')
+
+        if len(self.syst) != self.n_syst:
+            raise ValueError(
+                f'Expected {self.n_syst} systematics, got {len(self.syst)}')
+
+        if self.y.shape[0] != self.n_meas:
+            raise ValueError(
+                f'Central values vector must have {self.n_meas} elements')
+
+        if self.stat.ndim == 1:
+            if self.stat.shape[0] != self.n_meas:
+                raise ValueError(
+                    f'Stat error vector must have {self.n_meas} elements')
+        elif self.stat.ndim == 2:
+            if self.stat.shape != (self.n_meas, self.n_meas):
+                raise ValueError(
+                    f'Stat covariance must be {self.n_meas}x{self.n_meas}')
+        else:
+            raise ValueError('Stat errors must be a 1D or 2D array')
+
+        for name, arr in self.syst.items():
+            if arr.shape[0] != self.n_meas:
+                raise ValueError(
+                    f'Systematic {name} must have {self.n_meas} values')
+
+        if len(self.corr) != self.n_syst:
+            raise ValueError(
+                f'Expected {self.n_syst} correlation matrices, got {len(self.corr)}')
+
+        for name, mat in self.corr.items():
+            if mat.shape != (self.n_meas, self.n_meas):
+                raise ValueError(
+                    f'Correlation matrix {name} must be {self.n_meas}x{self.n_meas}')
+            diff = np.argwhere(~np.isclose(mat, mat.T, rtol=1e-7, atol=1e-8))
+            for i, j in diff:
+                if i < j:
+                    warnings.warn(
+                        f'Correlation matrix "{name}" asymmetric for measurements '
+                        f'{self.measurements[i]} and {self.measurements[j]}: '
+                        f'{mat[i, j]} vs {mat[j, i]}')
 
     # ------------------------------------------------------------------
     def _reduce_corr(self, rho, src_name=None):
@@ -448,6 +490,8 @@ class GVMCombination:
                     self.uncertain_systematics.pop(s, None)
                 else:
                     self.uncertain_systematics[s] = e
+
+        self._validate_combination()
 
         # Recompute matrices and refit after updates
         self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
