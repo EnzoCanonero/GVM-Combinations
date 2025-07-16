@@ -11,7 +11,7 @@ using an analytic Bartlett correction.
 from gvm_toolkit import GVMCombination
 
 # create the combination directly from a configuration file
-comb = GVMCombination("input_files/config_lhc.txt")
+comb = GVMCombination("input_files/LHC_mass_combination.yaml")
 
 print("mu hat:", comb.fit_results['mu'])
 
@@ -32,28 +32,30 @@ analytical Bartlett correction are implemented.  Plotting routines and code
 specific to the top-quark mass combination were removed to keep the toolkit
 lightweight and general.
 
+## Setup
+
+The toolkit requires a few Python packages.  A simple setup script is
+provided to install them all::
+
+    ./setup.sh
+
+This installs the dependencies listed in ``requirements.txt`` using
+``pip``.  You may also run ``pip install -r requirements.txt`` directly
+if preferred.
+
 ## Configuration File
 
-The combination is driven by a plain text configuration file.  Blank lines and
-any text after a ``#`` character are ignored.  Sections are introduced by an
-ampersand (``&``) followed by the section name.  The file now uses four
+The combination is driven by a YAML configuration file with three main
 sections:
 
-* **&Combination setup** – contains general metadata.
-  - ``Combination Name = <name>``
-  - ``Number of Measurements = <n>``
-  - ``Measurement names = m1 m2 ...``
-* **&Combination data** – provides the measurement values.
-  - ``Measurement central values = v1 v2 ...``
-  - Either ``Measurement stat errors = s1 s2 ...`` or ``Measurement stat covariance = <path>``.
-    The latter must point to a text file with the full ``n × n`` statistical covariance matrix.
-* **&Systematics setup** – describes all systematic sources.
-  - ``Number of systematics = <n>``
-  - One line per systematic: ``name epsilon [path]`` where ``path`` points to an
-    optional correlation matrix file.  In this repository the correlation
-    matrices are stored under ``input_files/correlations``.
-* **&Systematics data** – numeric table with one line per measurement.
-  - Each row lists the systematic uncertainties in the order defined above.
+* ``globals`` – directories containing correlation matrices and statistical
+  covariance files.
+* ``combination`` – the measurement names and central values.  Each entry may
+  include a ``stat_error`` field or the section may define ``stat_cov_path``
+  pointing to a covariance matrix.
+* ``systematics`` – list of systematics with their shift vectors, associated
+  correlation matrix file and optional ``epsilon`` error-on-error value.
 
-See ``input_files/config_lhc.txt`` for a complete example using statistical errors.
-``input_files/config_lhc_cov.txt`` shows the equivalent setup with a statistical covariance matrix.
+See ``input_files/LHC_mass_combination.yaml`` for a complete example using
+statistical errors.  ``input_files/LHC_mass_combination_cov.yaml`` shows the
+equivalent setup with a statistical covariance matrix.
