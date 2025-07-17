@@ -86,6 +86,8 @@ class GVMCombination:
                 cand = os.path.join(base_dir, stat_cov_path)
                 if os.path.exists(cand):
                     stat_cov_path = cand
+                elif corr_dir:
+                    stat_cov_path = os.path.join(corr_dir, stat_cov_path)
             V_stat = np.loadtxt(stat_cov_path, dtype=float)
             if V_stat.shape != (n_meas, n_meas):
                 raise ValueError(f'Stat covariance must be {n_meas}x{n_meas}')
