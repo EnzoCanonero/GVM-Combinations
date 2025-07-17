@@ -22,7 +22,7 @@ print("Goodness of fit:", comb.goodness_of_fit())
 info = comb.input_data()
 
 # modify the input and update the combination
-info['central']['ATLAS'] = 173.4
+info['data']['measurements']['ATLAS']['central'] = 173.4
 info['syst']['JES']['values']['ATLAS'] += 0.1
 comb.update_data(info)
 ```

@@ -408,6 +408,17 @@ class GVMCombination:
 
         meas = self.measurements
 
+        syst = {}
+        for sname in self.syst:
+            syst[sname] = {
+                'values': {
+                    m: float(self.syst[sname][i])
+                    for i, m in enumerate(meas)
+                },
+                'epsilon': self.uncertain_systematics.get(sname, 0.0),
+                'corr': self.corr[sname].copy(),
+            }
+
         cfg = {
             'global': {
                 'name': self.name,
@@ -424,18 +435,8 @@ class GVMCombination:
                 },
                 'V_stat': self.V_stat.copy(),
             },
-            'syst': {}
+            'syst': syst,
         }
-
-        for sname in self.syst:
-            cfg['syst'][sname] = {
-                'values': {
-                    m: float(self.syst[sname][i])
-                    for i, m in enumerate(meas)
-                },
-                'epsilon': self.uncertain_systematics.get(sname, 0.0),
-                'corr': self.corr[sname].copy(),
-            }
 
         return cfg
 
