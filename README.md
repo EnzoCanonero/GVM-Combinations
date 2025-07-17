@@ -48,12 +48,15 @@ if preferred.
 The combination is driven by a YAML configuration file with three main
 sections:
 
-* ``globals`` – directories containing correlation matrices and statistical
-  covariance files.
-* ``combination`` – the measurement names and central values.  Each entry may
-  include a ``stat_error`` field or the section may define ``stat_cov_path``
-  pointing to a covariance matrix.
-* ``systematics`` – list of systematics with their shift vectors, associated
+* ``global`` – directories containing correlation matrices and statistical
+  covariance files.  It must also define ``name``, ``n_meas`` and ``n_syst``
+  giving the combination name and the expected numbers of measurements and
+  systematic sources.
+* ``data`` – the measurement names and central values together with their
+  statistical uncertainties.  Statistical errors may be given explicitly or a
+  ``stat_cov_path`` can provide a covariance matrix.  In either case the
+  toolkit constructs the full covariance matrix.
+* ``syst`` – list of systematics with their shift vectors, associated
   correlation matrix file and optional ``epsilon`` error-on-error value.
 
 See ``input_files/LHC_mass_combination.yaml`` for a complete example using
