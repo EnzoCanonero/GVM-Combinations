@@ -75,10 +75,6 @@ class GVMCombination:
             if 'stat_error' in m:
                 stat_err.append(float(m['stat_error']))
 
-        if len(labels) != n_meas:
-            raise ValueError(
-                f'Expected {n_meas} measurements, found {len(labels)}')
-
         stat_cov_path = combo.get('stat_cov_path')
         if stat_cov_path:
             stat_cov_path = stat_cov_path.replace('${global.corr_dir}', corr_dir)
@@ -89,35 +85,18 @@ class GVMCombination:
                 elif corr_dir:
                     stat_cov_path = os.path.join(corr_dir, stat_cov_path)
             V_stat = np.loadtxt(stat_cov_path, dtype=float)
-            if V_stat.shape != (n_meas, n_meas):
-                raise ValueError(f'Stat covariance must be {n_meas}x{n_meas}')
-            if not np.allclose(V_stat, V_stat.T, rtol=1e-7, atol=1e-8):
-                diff = np.argwhere(~np.isclose(V_stat, V_stat.T, rtol=1e-7, atol=1e-8))
-                for i, j in diff:
-                    if i < j:
-                        warnings.warn(
-                            f'Stat covariance asymmetric for measurements {labels[i]} and {labels[j]}: '
-                            f'{V_stat[i, j]} vs {V_stat[j, i]}')
         elif stat_err:
-            if len(stat_err) != n_meas:
-                raise ValueError(f'Expected {n_meas} stat errors, found {len(stat_err)}')
             V_stat = np.diag(np.array(stat_err, dtype=float) ** 2)
         else:
-            raise ValueError('Measurement stat errors or covariance required')
+            V_stat = None
 
         syst_entries = data.get('syst', data.get('systematics', []))
-        if len(syst_entries) != n_syst:
-            raise ValueError(
-                f'Expected {n_syst} systematics, found {len(syst_entries)}')
 
         meas_map = {m: i for i, m in enumerate(labels)}
         syst_dict = {}
         for item in syst_entries:
             name = item['name']
             shifts = [float(x) for x in item['shifts']]
-            if len(shifts) != n_meas:
-                raise ValueError(
-                    f'Systematic {name} must have {n_meas} values')
             path_corr = item.get('corr_file')
             if path_corr:
                 path_corr = path_corr.replace('${global.corr_dir}', corr_dir)
@@ -157,6 +136,8 @@ class GVMCombination:
             raise ValueError(
                 f'Central values vector must have {self.n_meas} elements')
 
+        if self.V_stat is None:
+            raise ValueError('Measurement stat errors or covariance required')
         if self.V_stat.shape != (self.n_meas, self.n_meas):
             raise ValueError(
                 f'Stat covariance must be {self.n_meas}x{self.n_meas}')
@@ -459,9 +440,6 @@ class GVMCombination:
 
         if 'V_stat' in data:
             V_stat = np.asarray(data['V_stat'], dtype=float)
-            if V_stat.shape != (self.n_meas, self.n_meas):
-                raise ValueError(
-                    f'V_stat must be {self.n_meas}x{self.n_meas}')
             self.V_stat = V_stat
 
         syst_info = info.get('syst', {})
@@ -473,10 +451,6 @@ class GVMCombination:
                     self.syst[sname][idx[m]] = float(val)
             if 'corr' in entry:
                 mat = np.asarray(entry['corr'], dtype=float)
-                if mat.shape != (self.n_meas, self.n_meas):
-                    raise ValueError(
-                        f'Correlation matrix {sname} must be '
-                        f'{self.n_meas}x{self.n_meas}')
                 self.corr[sname] = mat
             if 'epsilon' in entry:
                 e = float(entry['epsilon'])
