@@ -404,120 +404,86 @@ class GVMCombination:
 
     # ------------------------------------------------------------------
     def input_data(self):
-        """Return dictionaries summarising the combination input.
-
-        The returned dictionary contains the following keys:
-
-        ``central``
-            Mapping measurement name -> central value.
-        ``stat_error``
-            Mapping measurement name -> statistical error.
-        ``stat_corr``
-            Mapping (name1, name2) -> statistical correlation coefficient.
-        ``systematics``
-            Mapping systematic name -> dict of measurement values.
-        ``syst_corr``
-            Mapping systematic name -> dict keyed by ``(name1, name2)`` with
-            correlation coefficients.
-        ``epsilon``
-            Mapping systematic name -> error-on-error.
-        """
+        """Return a dictionary summarising the current combination input."""
 
         meas = self.measurements
-        n = len(meas)
 
-        stat_cov = self.V_stat
-        stat_err = np.sqrt(np.diag(stat_cov))
+        cfg = {
+            'global': {
+                'name': self.name,
+                'n_meas': self.n_meas,
+                'n_syst': self.n_syst,
+            },
+            'data': {
+                'measurements': {
+                    m: {
+                        'central': float(self.y[i]),
+                        'stat': float(np.sqrt(self.V_stat[i, i]))
+                    }
+                    for i, m in enumerate(meas)
+                },
+                'V_stat': self.V_stat.copy(),
+            },
+            'syst': {}
+        }
 
-        out = {}
-        out['central'] = dict(zip(meas, self.y))
-        out['stat_error'] = dict(zip(meas, stat_err))
+        for sname in self.syst:
+            cfg['syst'][sname] = {
+                'values': {
+                    m: float(self.syst[sname][i])
+                    for i, m in enumerate(meas)
+                },
+                'epsilon': self.uncertain_systematics.get(sname, 0.0),
+                'corr': self.corr[sname].copy(),
+            }
 
-        stat_corr = {}
-        for i in range(n):
-            for j in range(n):
-                denom = stat_err[i] * stat_err[j]
-                rho = stat_cov[i, j] / denom if denom != 0 else 0.0
-                stat_corr[(meas[i], meas[j])] = rho
-        out['stat_corr'] = stat_corr
-
-        syst_value = {}
-        for sname, vals in self.syst.items():
-            syst_value[sname] = {m: vals[i] for i, m in enumerate(meas)}
-        out['systematics'] = syst_value
-
-        syst_corr = {}
-        for sname, rho in self.corr.items():
-            pairs = {}
-            for i in range(n):
-                for j in range(n):
-                    pairs[(meas[i], meas[j])] = float(rho[i, j])
-            syst_corr[sname] = pairs
-        out['syst_corr'] = syst_corr
-
-        epsilon = {k: self.uncertain_systematics.get(k, 0.0)
-                   for k in self.syst.keys()}
-        out['epsilon'] = epsilon
-
-        return out
+        return cfg
 
     # ------------------------------------------------------------------
     def update_data(self, info):
         """Update combination input from a summary dictionary.
 
         ``info`` should follow the same structure as returned by
-        :meth:`input_summary`.  Only the provided values are updated.
+        :meth:`input_data`.  Only the provided values are updated.
         """
 
         idx = {m: i for i, m in enumerate(self.measurements)}
 
-        if 'central' in info:
-            for m, v in info['central'].items():
-                self.y[idx[m]] = float(v)
+        data = info.get('data', {})
+        meas_info = data.get('measurements', {})
+        for m, vals in meas_info.items():
+            if 'central' in vals:
+                self.y[idx[m]] = float(vals['central'])
+            if 'stat' in vals:
+                self.V_stat[idx[m], idx[m]] = float(vals['stat']) ** 2
 
-        if 'stat_error' in info or 'stat_corr' in info:
-            n = len(self.measurements)
-            errors = {
-                m: np.sqrt(self.V_stat[i, i])
-                for m, i in idx.items()
-            }
-            errors.update(info.get('stat_error', {}))
-            if 'stat_corr' in info:
-                cov = np.zeros((n, n), float)
-                for m in self.measurements:
-                    cov[idx[m], idx[m]] = errors[m] ** 2
-                for (m1, m2), rho in info['stat_corr'].items():
-                    s1 = errors[m1]
-                    s2 = errors[m2]
-                    cov[idx[m1], idx[m2]] = rho * s1 * s2
-                    cov[idx[m2], idx[m1]] = cov[idx[m1], idx[m2]]
-                self.V_stat = cov
-            else:
-                self.V_stat = np.diag(np.array([errors[m] for m in self.measurements], float) ** 2)
+        if 'V_stat' in data:
+            V_stat = np.asarray(data['V_stat'], dtype=float)
+            if V_stat.shape != (self.n_meas, self.n_meas):
+                raise ValueError(
+                    f'V_stat must be {self.n_meas}x{self.n_meas}')
+            self.V_stat = V_stat
 
-        if 'systematics' in info:
-            for sname, per_meas in info['systematics'].items():
-                if sname not in self.syst:
-                    continue
-                arr = self.syst[sname]
-                for m, val in per_meas.items():
-                    arr[idx[m]] = float(val)
-
-        if 'syst_corr' in info:
-            for sname, corr_map in info['syst_corr'].items():
-                mat = self.corr.get(sname, np.eye(len(self.measurements)))
-                for (m1, m2), rho in corr_map.items():
-                    i, j = idx[m1], idx[m2]
-                    mat[i, j] = mat[j, i] = float(rho)
-                self.corr[sname] = np.asarray(mat, float)
-
-        if 'epsilon' in info:
-            for s, e in info['epsilon'].items():
-                e = float(e)
+        syst_info = info.get('syst', {})
+        for sname, entry in syst_info.items():
+            if sname not in self.syst:
+                continue
+            if 'values' in entry:
+                for m, val in entry['values'].items():
+                    self.syst[sname][idx[m]] = float(val)
+            if 'corr' in entry:
+                mat = np.asarray(entry['corr'], dtype=float)
+                if mat.shape != (self.n_meas, self.n_meas):
+                    raise ValueError(
+                        f'Correlation matrix {sname} must be '
+                        f'{self.n_meas}x{self.n_meas}')
+                self.corr[sname] = mat
+            if 'epsilon' in entry:
+                e = float(entry['epsilon'])
                 if e == 0:
-                    self.uncertain_systematics.pop(s, None)
+                    self.uncertain_systematics.pop(sname, None)
                 else:
-                    self.uncertain_systematics[s] = e
+                    self.uncertain_systematics[sname] = e
 
         self._validate_combination()
 

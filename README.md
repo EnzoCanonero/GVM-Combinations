@@ -19,12 +19,12 @@ print("68% CI:", comb.confidence_interval())
 print("Goodness of fit:", comb.goodness_of_fit())
 
 # access a dictionary with all input values
-info = comb.input_summary()
+info = comb.input_data()
 
 # modify the input and update the combination
 info['central']['ATLAS'] = 173.4
-info['systematics']['JES']['ATLAS'] += 0.1
-comb.update_inputs(info)
+info['syst']['JES']['values']['ATLAS'] += 0.1
+comb.update_data(info)
 ```
 
 Only the construction of the likelihood, numerical minimisation and the
