@@ -5,7 +5,6 @@
 
 global:
   corr_dir:      input_files/correlations/
-  stat_cov_dir:  input_files/statistics/
   n_meas: 15
   n_syst: 25
   name: LHC
