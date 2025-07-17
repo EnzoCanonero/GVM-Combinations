@@ -51,7 +51,6 @@ class GVMCombination:
         cfg = {}
         glob = data.get('global', data.get('globals', {}))
         corr_dir = glob.get('corr_dir', '')
-        stat_cov_dir = glob.get('stat_cov_dir', '')
         try:
             name = glob['name']
             n_meas = int(glob['n_meas'])
@@ -83,7 +82,6 @@ class GVMCombination:
         stat_cov_path = combo.get('stat_cov_path')
         if stat_cov_path:
             stat_cov_path = stat_cov_path.replace('${global.corr_dir}', corr_dir)
-            stat_cov_path = stat_cov_path.replace('${global.stat_cov_dir}', stat_cov_dir)
             if not os.path.isabs(stat_cov_path):
                 cand = os.path.join(base_dir, stat_cov_path)
                 if os.path.exists(cand):
