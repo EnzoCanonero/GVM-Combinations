@@ -41,7 +41,7 @@ data:
       central: 173.50
     - label: o
       central: 173.68
-  stat_cov_path: ${global.corr_dir}stat_cov_lhc.txt
+  stat_cov_path: stat_cov_lhc.txt
 
 syst:
   - name: LHCJES1
