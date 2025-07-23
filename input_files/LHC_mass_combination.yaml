@@ -3,12 +3,13 @@
 #  Schema version: 1
 # -----------------------------------------------------------------
 
-globals:
+global:
   corr_dir:      input_files/correlations/
-  stat_cov_dir:  input_files/statistics/
-
-combination:
+  n_meas: 15
+  n_syst: 25
   name: LHC
+
+data:
   measurements:
     - label: a
       central: 173.79
@@ -55,9 +56,9 @@ combination:
     - label: o
       central: 173.68
       stat_error: 0.20
-  # stat_cov_path: ${globals.stat_cov_dir}LHC_stat_cov_15x15.txt
+  # stat_cov_path: ${global.corr_dir}LHC_stat_cov_15x15.txt
 
-systematics:
+syst:
   - name: LHCJES1
     shifts: [0.54, 0.33, 0.38, 0.35, 0.28, 0.40, 0.77, 0.24, 0.69, 0.31, 0.10, 0.16, 0.40, 0.00, 0.11]
     corr_file: LHCJES1.txt
