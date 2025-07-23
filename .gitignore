@@ -1,0 +1,6 @@
+# Ignore Python cache directories
+__pycache__/
+# Ignore Jupyter notebook checkpoints
+.ipynb_checkpoints/
+# Ignore macOS metadata files
+.DS_Store
