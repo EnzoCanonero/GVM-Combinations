@@ -49,7 +49,7 @@ class GVMCombination:
             data = yaml.safe_load(f)
 
         cfg = {}
-        glob = data.get('global', data.get('globals', {}))
+        glob = data.get('global', {})
         corr_dir = glob.get('corr_dir', '')
         try:
             name = glob['name']
@@ -66,12 +66,23 @@ class GVMCombination:
             'n_syst': n_syst,
         }
 
-        combo = data.get('data', data.get('combination', {}))
-        meas_entries = combo.get('measurements', [])
+        combo = data.get('data', {})
+        if 'measurements' not in combo:
+            raise KeyError('Data configuration must define "measurements"')
+        meas_entries = combo['measurements']
         labels, central, stat_err = [], [], []
         for m in meas_entries:
-            labels.append(m['label'])
-            central.append(float(m['central']))
+            try:
+                label = m['label']
+            except KeyError as exc:
+                raise KeyError('Each measurement requires a "label"') from exc
+            try:
+                cent = m['central']
+            except KeyError as exc:
+                raise KeyError(
+                    f'Measurement "{label}" must define "central"') from exc
+            labels.append(label)
+            central.append(float(cent))
             if 'stat_error' in m:
                 stat_err.append(float(m['stat_error']))
 
@@ -88,7 +99,7 @@ class GVMCombination:
         elif stat_err:
             V_stat = np.diag(np.array(stat_err, dtype=float) ** 2)
         else:
-            V_stat = None
+            raise KeyError('Measurement stat errors or covariance required')
 
         syst_entries = data.get('syst', data.get('systematics', []))
 
@@ -136,8 +147,6 @@ class GVMCombination:
             raise ValueError(
                 f'Central values vector must have {self.n_meas} elements')
 
-        if self.V_stat is None:
-            raise ValueError('Measurement stat errors or covariance required')
         if self.V_stat.shape != (self.n_meas, self.n_meas):
             raise ValueError(
                 f'Stat covariance must be {self.n_meas}x{self.n_meas}')
