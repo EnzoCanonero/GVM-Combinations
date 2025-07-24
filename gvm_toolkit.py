@@ -253,37 +253,25 @@ class GVMCombination:
         return V_inv, C_inv, Gamma_factors
 
     # ------------------------------------------------------------------
-    def nll(self, mu, *thetas, y=None, u=None, s=None):
+    def nll(self, mu, *thetas):
         """Negative log-likelihood."""
-        y = self.y if y is None else y
-        if u is None:
-            u = np.zeros(sum(mat.shape[0] for mat in self.C_inv.values()))
-        if s is None:
-            s = np.ones(len(self.C_inv))
-
         thetas = list(thetas)
-        seg_u = []
-        start = 0
-        for key in self.C_inv:
-            npar = self.C_inv[key].shape[0]
-            seg_u.append(u[start:start + npar])
-            start += npar
 
         adj = np.sum([self.Gamma[k] @ thetas[i]
                       for i, k in enumerate(self.Gamma)], axis=0) if thetas else 0
-        v = y - mu - adj
+        v = self.y - mu - adj
         chi2_y = v @ self.V_inv @ v
 
         chi2_u = 0.0
         for i, k in enumerate(self.C_inv):
-            theta = thetas[i] - seg_u[i]
+            theta = thetas[i]
             Cinv = self.C_inv[k]
             eps = self.uncertain_systematics[k]
             N_s = len(theta)
             if eps > 0:
-                chi2_u += (N_s + 1./(2.*eps**2)) * np.log(1. + 2.*eps**2/s[i]*theta @ Cinv @ theta)
+                chi2_u += (N_s + 1./(2.*eps**2)) * np.log(1. + 2.*eps**2 * theta @ Cinv @ theta)
             else:
-                chi2_u += (theta @ Cinv @ theta) / s[i]
+                chi2_u += theta @ Cinv @ theta
         return 0.5 * (chi2_y + chi2_u)
 
     # ------------------------------------------------------------------
