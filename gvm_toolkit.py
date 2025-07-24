@@ -27,6 +27,8 @@ class GVMCombination:
             for sname in cfg['syst']
         }
 
+        self.syst_type = {s: cfg['syst'][s]['type'] for s in cfg['syst']}
+
         self.corr = {s: np.asarray(cfg['syst'][s]['corr'], dtype=float)
                      for s in cfg['syst']}
 
@@ -108,21 +110,47 @@ class GVMCombination:
         for item in syst_entries:
             name = item['name']
             shifts = [float(x) for x in item['shifts']]
-            path_corr = item.get('corr_file')
-            if path_corr:
-                path_corr = path_corr.replace('${global.corr_dir}', corr_dir)
-                if not os.path.isabs(path_corr):
-                    cand = os.path.join(base_dir, path_corr)
-                    if os.path.exists(cand):
-                        path_corr = cand
-                    elif corr_dir:
-                        path_corr = os.path.join(corr_dir, path_corr)
-                corr = np.loadtxt(path_corr, dtype=float)
+            tinfo = item.get('type')
+            if tinfo is None:
+                raise KeyError(f'Systematic "{name}" must define "type"')
+
+            syst_type = None
+            corr = np.empty((0, 0))
+
+            if isinstance(tinfo, dict):
+                if 'dependent' in tinfo:
+                    syst_type = 'dependent'
+                    dep = tinfo['dependent']
+                    if dep == 'diagonal':
+                        corr = np.eye(n_meas)
+                    elif dep == 'ones':
+                        corr = np.ones((n_meas, n_meas))
+                    else:
+                        path_corr = dep.replace('${global.corr_dir}', corr_dir)
+                        if not os.path.isabs(path_corr):
+                            cand = os.path.join(base_dir, path_corr)
+                            if os.path.exists(cand):
+                                path_corr = cand
+                            elif corr_dir:
+                                path_corr = os.path.join(corr_dir, path_corr)
+                        corr = np.loadtxt(path_corr, dtype=float)
+                elif 'independent' in tinfo:
+                    syst_type = 'independent'
+                else:
+                    raise ValueError(f'Unrecognised type for systematic "{name}"')
+            elif isinstance(tinfo, str) and tinfo == 'independent':
+                syst_type = 'independent'
             else:
-                corr = np.eye(n_meas)
+                raise ValueError(f'Invalid "type" specification for systematic "{name}"')
+
             eps = float(item.get('epsilon', 0.0))
             val_map = {lab: shifts[meas_map[lab]] for lab in labels}
-            syst_dict[name] = {'values': val_map, 'epsilon': eps, 'corr': corr}
+            syst_dict[name] = {
+                'values': val_map,
+                'epsilon': eps,
+                'type': syst_type,
+                'corr': corr,
+            }
 
         meas_data = {
             lab: {'central': c, 'stat': np.sqrt(V_stat[i, i])}
@@ -168,16 +196,24 @@ class GVMCombination:
                 f'Expected {self.n_syst} correlation matrices, got {len(self.corr)}')
 
         for name, mat in self.corr.items():
-            if mat.shape != (self.n_meas, self.n_meas):
-                raise ValueError(
-                    f'Correlation matrix {name} must be {self.n_meas}x{self.n_meas}')
-            diff = np.argwhere(~np.isclose(mat, mat.T, rtol=1e-7, atol=1e-8))
-            for i, j in diff:
-                if i < j:
-                    warnings.warn(
-                        f'Correlation matrix "{name}" asymmetric for measurements '
-                        f'{self.measurements[i]} and {self.measurements[j]}: '
-                        f'{mat[i, j]} vs {mat[j, i]}')
+            stype = self.syst_type[name]
+            if stype == 'dependent':
+                if mat.shape != (self.n_meas, self.n_meas):
+                    raise ValueError(
+                        f'Correlation matrix {name} must be {self.n_meas}x{self.n_meas}')
+                diff = np.argwhere(~np.isclose(mat, mat.T, rtol=1e-7, atol=1e-8))
+                for i, j in diff:
+                    if i < j:
+                        warnings.warn(
+                            f'Correlation matrix "{name}" asymmetric for measurements '
+                            f'{self.measurements[i]} and {self.measurements[j]}: '
+                            f'{mat[i, j]} vs {mat[j, i]}')
+            elif stype == 'independent':
+                if mat.size != 0:
+                    raise ValueError(
+                        f'Systematic {name} is independent so corr matrix must be empty')
+            else:
+                raise ValueError(f'Unknown systematic type "{stype}" for {name}')
 
     # ------------------------------------------------------------------
     def _reduce_corr(self, rho, src_name=None):
@@ -230,7 +266,10 @@ class GVMCombination:
         for src, rho in self.corr.items():
             if src not in self.uncertain_systematics:
                 sigma = self.syst[src]
-                V_syst += np.outer(sigma, sigma) * rho
+                if self.syst_type[src] == 'dependent':
+                    V_syst += np.outer(sigma, sigma) * rho
+                else:  # independent
+                    V_syst += np.diag(sigma ** 2)
         V_blue = V_stat + V_syst
         V_inv = np.linalg.inv(V_blue)
 
@@ -238,18 +277,22 @@ class GVMCombination:
         Gamma_factors = {}
         for src, sigma in self.syst.items():
             if src in self.uncertain_systematics:
-                rho = self.corr[src]
-                red, Gamma = self._reduce_corr(rho, src_name=src)
-                for i in range(Gamma.shape[0]):
-                    for j in range(Gamma.shape[1]):
-                        if Gamma[i, j] != 0:
-                            Gamma[i, j] *= sigma[i]
-                zero_cols = np.all(Gamma == 0, axis=0)
-                Gamma = Gamma[:, ~zero_cols]
-                if np.any(zero_cols):
-                    red = red[~zero_cols][:, ~zero_cols]
-                C_inv[src] = np.linalg.inv(red)
-                Gamma_factors[src] = Gamma
+                if self.syst_type[src] == 'dependent':
+                    rho = self.corr[src]
+                    red, Gamma = self._reduce_corr(rho, src_name=src)
+                    for i in range(Gamma.shape[0]):
+                        for j in range(Gamma.shape[1]):
+                            if Gamma[i, j] != 0:
+                                Gamma[i, j] *= sigma[i]
+                    zero_cols = np.all(Gamma == 0, axis=0)
+                    Gamma = Gamma[:, ~zero_cols]
+                    if np.any(zero_cols):
+                        red = red[~zero_cols][:, ~zero_cols]
+                    C_inv[src] = np.linalg.inv(red)
+                    Gamma_factors[src] = Gamma
+                else:  # independent
+                    Gamma_factors[src] = np.diag(sigma)
+                    C_inv[src] = np.eye(n)
         return V_inv, C_inv, Gamma_factors
 
     # ------------------------------------------------------------------
@@ -263,15 +306,22 @@ class GVMCombination:
         chi2_y = v @ self.V_inv @ v
 
         chi2_u = 0.0
-        for i, k in enumerate(self.C_inv):
+        keys = list(self.Gamma.keys())
+        for i, k in enumerate(keys):
             theta = thetas[i]
-            Cinv = self.C_inv[k]
             eps = self.uncertain_systematics[k]
-            N_s = len(theta)
-            if eps > 0:
-                chi2_u += (N_s + 1./(2.*eps**2)) * np.log(1. + 2.*eps**2 * theta @ Cinv @ theta)
+            if self.syst_type[k] == 'dependent':
+                Cinv = self.C_inv[k]
+                N_s = len(theta)
+                if eps > 0:
+                    chi2_u += (N_s + 1./(2.*eps**2)) * np.log(1. + 2.*eps**2 * theta @ Cinv @ theta)
+                else:
+                    chi2_u += theta @ Cinv @ theta
             else:
-                chi2_u += theta @ Cinv @ theta
+                if eps > 0:
+                    chi2_u += np.sum((1 + 1./(2.*eps**2)) * np.log(1. + 2.*eps**2 * theta**2))
+                else:
+                    chi2_u += theta @ theta
         return 0.5 * (chi2_y + chi2_u)
 
     # ------------------------------------------------------------------
@@ -290,8 +340,8 @@ class GVMCombination:
 
         # Build full parameter list
         names = ['mu']
-        for key in self.C_inv:
-            for j in range(self.C_inv[key].shape[0]):
+        for key in self.Gamma:
+            for j in range(self.Gamma[key].shape[1]):
                 names.append(f'{key}_{j}')
 
         initial = [np.mean(self.y)] + [0.] * (len(names) - 1)
@@ -317,8 +367,8 @@ class GVMCombination:
             theta_flat = params[1:]
             thetas = []
             i = 0
-            for key in self.C_inv:
-                npar = self.C_inv[key].shape[0]
+            for key in self.Gamma:
+                npar = self.Gamma[key].shape[1]
                 thetas.append(np.array(theta_flat[i:i+npar]))
                 i += npar
             nll_val = self.nll(mu, *thetas)
@@ -341,8 +391,8 @@ class GVMCombination:
             theta_flat = params[1:]
             thetas = []
             i = 0
-            for key in self.C_inv:
-                npar = self.C_inv[key].shape[0]
+            for key in self.Gamma:
+                npar = self.Gamma[key].shape[1]
                 thetas.append(np.array(theta_flat[i:i+npar]))
                 i += npar
             return self.nll(mu, *thetas)
@@ -409,6 +459,7 @@ class GVMCombination:
                         for i, m in enumerate(meas)
                     },
                     'epsilon': self.uncertain_systematics.get(sname, 0.0),
+                    'type': self.syst_type[sname],
                     'corr': self.corr[sname].copy(),
                 }
                 for sname in self.syst
@@ -449,6 +500,10 @@ class GVMCombination:
             if 'corr' in entry:
                 mat = np.asarray(entry['corr'], dtype=float)
                 self.corr[sname] = mat
+            if 'type' in entry:
+                self.syst_type[sname] = entry['type']
+                if entry['type'] == 'independent' and 'corr' not in entry:
+                    self.corr[sname] = np.empty((0, 0))
             if 'epsilon' in entry:
                 e = float(entry['epsilon'])
                 if e == 0:
