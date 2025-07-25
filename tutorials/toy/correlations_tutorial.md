@@ -82,10 +82,10 @@ syst:
   - name: sys1
     shifts: [1.4142, 1.4142]
     type:
-      dependent: diag_corr.txt
+      dependent: diagonal
     epsilon: 0.0
 ```
-`diag_corr.txt`
+The diagonal option creates the identity matrix:
 ```
 1 0
 0 1
@@ -113,10 +113,10 @@ syst:
   - name: sys1
     shifts: [1.4142, 1.4142]
     type:
-      dependent: full_corr.txt
+      dependent: ones
     epsilon: 0.0
 ```
-`full_corr.txt`
+The `ones` option yields a matrix filled with ones:
 ```
 1 1
 1 1
@@ -202,7 +202,7 @@ syst:
   - name: sys1
     shifts: [1.4142, 1.4142]
     type:
-      dependent: full_corr.txt
+      dependent: ones
     epsilon: 0.0
 ```
 `stat_cov.txt`
@@ -210,7 +210,7 @@ syst:
 2 1
 1 2
 ```
-`full_corr.txt`
+The fully correlated systematic corresponds to a matrix of ones:
 ```
 1 1
 1 1

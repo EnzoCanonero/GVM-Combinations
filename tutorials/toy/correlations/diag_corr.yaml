@@ -17,5 +17,5 @@ syst:
   - name: sys1
     shifts: [1.4142, 1.4142]
     type:
-      dependent: diag_corr.txt
+      dependent: diagonal
     epsilon: 0.0
