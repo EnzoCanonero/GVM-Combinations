@@ -1,0 +1,21 @@
+global:
+  name: full_corr
+  n_meas: 2
+  n_syst: 1
+  corr_dir: tutorials/toy/correlations
+
+data:
+  measurements:
+    - label: m1
+      central: 1.0
+      stat_error: 1.4142
+    - label: m2
+      central: -1.0
+      stat_error: 1.4142
+
+syst:
+  - name: sys1
+    shifts: [1.4142, 1.4142]
+    type:
+      dependent: full_corr.txt
+    epsilon: 0.0
