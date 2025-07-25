@@ -229,19 +229,27 @@ stat_cov: mu_hat=0.0000, CI=(-1.8788, 1.8713), chi2=2.000
 ```
 
 ## Tip: modifying the combination
-You can manually tweak measurements or correlations directly on a `GVMCombination` instance and refit without creating a new configuration file.
+It can be useful to adjust the input of an existing combination and rerun the fit
+without editing the YAML file.  The `input_data()` method returns a dictionary
+summarising the current configuration, which can then be modified and passed back
+to `update_data()` before re-fitting.
 
 ```python
 comb = GVMCombination('correlations/decorrelated.yaml')
 
-# modify central value and systematic shift
-comb.y[0] = 2.0
-comb.syst['sys1'][0] = 0.5
+# retrieve current setup
+info = comb.input_data()
 
-# change the correlation matrix
-comb.corr['sys1'] = np.array([[1.0, 0.3], [0.3, 1.0]])
+# modify measurement and systematic values
+info['data']['measurements']['m1']['central'] = 2.0
+info['syst']['sys1']['values']['m1'] = 0.5
 
-# refit with updated inputs
+# replace the correlation matrix and mark the systematic as dependent
+info['syst']['sys1']['type'] = 'dependent'
+info['syst']['sys1']['corr'] = np.array([[1.0, 0.3], [0.3, 1.0]])
+
+# update the combination and refit
+comb.update_data(info)
 comb.fit_results = comb.minimize()
 print(f"updated mu_hat={comb.fit_results['mu']:.4f}")
 ```
