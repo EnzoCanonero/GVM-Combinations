@@ -2,8 +2,6 @@
 
 In this notebook we explore how different correlation assumptions impact a simple two-measurement combination. Both measurements provide an estimate of the same quantity with central values +1 and -1. Their statistical uncertainties are $\sqrt{2}$ and we introduce a single systematic source also of magnitude $\sqrt{2}$. All error-on-error terms ($\epsilon$) are set to zero so only the correlations influence the result.
 
-
-
 ```python
 import os, sys
 
@@ -17,10 +15,32 @@ from gvm_toolkit import GVMCombination
 
 The following cells build a `GVMCombination` for each correlation scenario. After running the fit we print the estimated mean (`mu_hat`), the 68% confidence interval and the goodness-of-fit (chi-square) value.
 
-
 ## 1. Decorrelated case
 Here the systematic uncertainty is defined as independent for each measurement (no correlation matrix).
 
+`decorrelated.yaml`
+```yaml
+global:
+  name: decorrelated
+  n_meas: 2
+  n_syst: 1
+  corr_dir: tutorials/toy/correlations
+
+data:
+  measurements:
+    - label: m1
+      central: 1.0
+      stat_error: 1.4142
+    - label: m2
+      central: -1.0
+      stat_error: 1.4142
+
+syst:
+  - name: sys1
+    shifts: [1.4142, 1.4142]
+    type: independent
+    epsilon: 0.0
+```
 
 ```python
 comb = GVMCombination('correlations/decorrelated.yaml')
@@ -28,7 +48,10 @@ mu_hat = comb.fit_results['mu']
 ci_low, ci_high, _ = comb.confidence_interval()
 chi2 = comb.goodness_of_fit()
 print(f'decorrelated: mu_hat={mu_hat:.4f}, CI=({ci_low:.4f}, {ci_high:.4f}), chi2={chi2:.3f}')
+```
 
+```
+decorrelated: mu_hat=0.0000, CI=(-1.4188, 1.4138), chi2=0.500
 ```
 
 ## 2. Correlation examples
@@ -37,21 +60,161 @@ We now compare three different correlation matrices for the systematic uncertain
 2. **Fully correlated**: all coefficients are one so the systematic behaves as one shared nuisance parameter.
 3. **Hybrid**: the off-diagonal coefficient is 0.5 representing a partial correlation.
 
+### Diagonal
+`diag_corr.yaml`
+```yaml
+global:
+  name: diag_corr
+  n_meas: 2
+  n_syst: 1
+  corr_dir: tutorials/toy/correlations
 
+data:
+  measurements:
+    - label: m1
+      central: 1.0
+      stat_error: 1.4142
+    - label: m2
+      central: -1.0
+      stat_error: 1.4142
 
-```python
-for cfg in ['diag_corr.yaml', 'full_corr.yaml', 'hybrid_corr.yaml']:
-    comb = GVMCombination(f'correlations/{cfg}')
-    mu_hat = comb.fit_results['mu']
-    ci_low, ci_high, _ = comb.confidence_interval()
-    chi2 = comb.goodness_of_fit()
-    print(f'{cfg}: mu_hat={mu_hat:.4f}, CI=({ci_low:.4f}, {ci_high:.4f}), chi2={chi2:.3f}')
-
+syst:
+  - name: sys1
+    shifts: [1.4142, 1.4142]
+    type:
+      dependent: diag_corr.txt
+    epsilon: 0.0
+```
+`diag_corr.txt`
+```
+1 0
+0 1
 ```
 
-## 5. Non-diagonal statistical covariance
+### Fully correlated
+`full_corr.yaml`
+```yaml
+global:
+  name: full_corr
+  n_meas: 2
+  n_syst: 1
+  corr_dir: tutorials/toy/correlations
+
+data:
+  measurements:
+    - label: m1
+      central: 1.0
+      stat_error: 1.4142
+    - label: m2
+      central: -1.0
+      stat_error: 1.4142
+
+syst:
+  - name: sys1
+    shifts: [1.4142, 1.4142]
+    type:
+      dependent: full_corr.txt
+    epsilon: 0.0
+```
+`full_corr.txt`
+```
+1 1
+1 1
+```
+
+### Hybrid
+`hybrid_corr.yaml`
+```yaml
+global:
+  name: hybrid_corr
+  n_meas: 2
+  n_syst: 1
+  corr_dir: tutorials/toy/correlations
+
+data:
+  measurements:
+    - label: m1
+      central: 1.0
+      stat_error: 1.4142
+    - label: m2
+      central: -1.0
+      stat_error: 1.4142
+
+syst:
+  - name: sys1
+    shifts: [1.4142, 1.4142]
+    type:
+      dependent: hybrid_corr.txt
+    epsilon: 0.0
+```
+`hybrid_corr.txt`
+```
+1 0.5
+0.5 1
+```
+
+```python
+comb = GVMCombination('correlations/diag_corr.yaml')
+mu_hat = comb.fit_results['mu']
+ci_low, ci_high, _ = comb.confidence_interval()
+chi2 = comb.goodness_of_fit()
+print(f'diag_corr: mu_hat={mu_hat:.4f}, CI=({ci_low:.4f}, {ci_high:.4f}), chi2={chi2:.3f}')
+
+comb = GVMCombination('correlations/full_corr.yaml')
+mu_hat = comb.fit_results['mu']
+ci_low, ci_high, _ = comb.confidence_interval()
+chi2 = comb.goodness_of_fit()
+print(f'full_corr: mu_hat={mu_hat:.4f}, CI=({ci_low:.4f}, {ci_high:.4f}), chi2={chi2:.3f}')
+
+comb = GVMCombination('correlations/hybrid_corr.yaml')
+mu_hat = comb.fit_results['mu']
+ci_low, ci_high, _ = comb.confidence_interval()
+chi2 = comb.goodness_of_fit()
+print(f'hybrid_corr: mu_hat={mu_hat:.4f}, CI=({ci_low:.4f}, {ci_high:.4f}), chi2={chi2:.3f}')
+```
+
+```
+diag_corr: mu_hat=0.0000, CI=(-1.4188, 1.4138), chi2=0.500
+full_corr: mu_hat=0.0000, CI=(-1.7375, 1.7325), chi2=1.000
+hybrid_corr: mu_hat=0.0000, CI=(-1.5888, 1.5813), chi2=0.667
+```
+
+## 3. Non-diagonal statistical covariance
 The same systematic is fully correlated as above, but the statistical uncertainties are supplied via a covariance matrix with non-zero off-diagonal terms.
 
+`stat_cov.yaml`
+```yaml
+global:
+  name: stat_cov
+  n_meas: 2
+  n_syst: 1
+  corr_dir: tutorials/toy/correlations
+
+data:
+  stat_cov_path: stat_cov.txt
+  measurements:
+    - label: m1
+      central: 1.0
+    - label: m2
+      central: -1.0
+
+syst:
+  - name: sys1
+    shifts: [1.4142, 1.4142]
+    type:
+      dependent: full_corr.txt
+    epsilon: 0.0
+```
+`stat_cov.txt`
+```
+2 1
+1 2
+```
+`full_corr.txt`
+```
+1 1
+1 1
+```
 
 ```python
 comb = GVMCombination('correlations/stat_cov.yaml')
@@ -59,8 +222,26 @@ mu_hat = comb.fit_results['mu']
 ci_low, ci_high, _ = comb.confidence_interval()
 chi2 = comb.goodness_of_fit()
 print(f'stat_cov: mu_hat={mu_hat:.4f}, CI=({ci_low:.4f}, {ci_high:.4f}), chi2={chi2:.3f}')
-
 ```
 
-> **Tip**
-> You can modify the combination without creating a new configuration file by retrieving the current input with `comb.input_data()`, editing the returned dictionary and then calling `comb.update_data()`.
+```
+stat_cov: mu_hat=0.0000, CI=(-1.8788, 1.8713), chi2=2.000
+```
+
+## Tip: modifying the combination
+You can manually tweak measurements or correlations directly on a `GVMCombination` instance and refit without creating a new configuration file.
+
+```python
+comb = GVMCombination('correlations/decorrelated.yaml')
+
+# modify central value and systematic shift
+comb.y[0] = 2.0
+comb.syst['sys1'][0] = 0.5
+
+# change the correlation matrix
+comb.corr['sys1'] = np.array([[1.0, 0.3], [0.3, 1.0]])
+
+# refit with updated inputs
+comb.fit_results = comb.minimize()
+print(f"updated mu_hat={comb.fit_results['mu']:.4f}")
+```
