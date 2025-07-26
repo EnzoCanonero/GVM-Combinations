@@ -253,3 +253,226 @@ comb.update_data(info)
 comb.fit_results = comb.minimize()
 print(f"updated mu_hat={comb.fit_results['mu']:.4f}")
 ```
+
+## 4. Effect of error-on-error
+We now vary the error-on-error parameter ($\epsilon$) from 0 to 0.6 while also testing three different pairs of measurements $(\pm1, \pm2, \pm3)$. For each correlation scenario we plot the fitted central value, confidence interval size and goodness-of-fit.
+
+### Decorrelated
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from copy import deepcopy
+
+eps_grid = np.linspace(0., 0.6, 7)
+y_vals = [1, 2, 3]
+comb = GVMCombination('correlations/decorrelated.yaml')
+base_info = comb.input_data()
+cv = {y: [] for y in y_vals}
+ci = {y: [] for y in y_vals}
+gof = {y: [] for y in y_vals}
+for y in y_vals:
+    for eps in eps_grid:
+        info = deepcopy(base_info)
+        info['data']['measurements'][0]['central'] = float(y)
+        info['data']['measurements'][1]['central'] = -float(y)
+        info['syst']['sys1']['epsilon'] = float(eps)
+        comb.update_data(info)
+        cv[y].append(comb.fit_results['mu'])
+        ci[y].append(comb.confidence_interval()[2])
+        gof[y].append(comb.goodness_of_fit())
+
+plt.figure(figsize=(11,7))
+for y in y_vals:
+    plt.plot(eps_grid, cv[y], '--o', label=f'y=\u00b1{y}')
+plt.xlabel(r'$\\epsilon$', fontsize=24)
+plt.ylabel('Central value', fontsize=20)
+plt.grid(True)
+plt.legend(fontsize=15)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(11,7))
+for y in y_vals:
+    plt.plot(eps_grid, ci[y], '--o', label=f'y=\u00b1{y}')
+plt.xlabel(r'$\\epsilon$', fontsize=24)
+plt.ylabel('68% half-size CI', fontsize=20)
+plt.grid(True)
+plt.legend(fontsize=15)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(11,7))
+for y in y_vals:
+    plt.plot(eps_grid, gof[y], '--o', label=f'y=\u00b1{y}')
+plt.xlabel(r'$\\epsilon$', fontsize=24)
+plt.ylabel(r'$\\chi^2$', fontsize=20)
+plt.grid(True)
+plt.legend(fontsize=15)
+plt.tight_layout()
+plt.show()
+```
+
+### Diagonal correlation
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from copy import deepcopy
+
+eps_grid = np.linspace(0., 0.6, 7)
+y_vals = [1, 2, 3]
+comb = GVMCombination('correlations/diag_corr.yaml')
+base_info = comb.input_data()
+cv = {y: [] for y in y_vals}
+ci = {y: [] for y in y_vals}
+gof = {y: [] for y in y_vals}
+for y in y_vals:
+    for eps in eps_grid:
+        info = deepcopy(base_info)
+        info['data']['measurements'][0]['central'] = float(y)
+        info['data']['measurements'][1]['central'] = -float(y)
+        info['syst']['sys1']['epsilon'] = float(eps)
+        comb.update_data(info)
+        cv[y].append(comb.fit_results['mu'])
+        ci[y].append(comb.confidence_interval()[2])
+        gof[y].append(comb.goodness_of_fit())
+
+plt.figure(figsize=(11,7))
+for y in y_vals:
+    plt.plot(eps_grid, cv[y], '--o', label=f'y=\u00b1{y}')
+plt.xlabel(r'$\\epsilon$', fontsize=24)
+plt.ylabel('Central value', fontsize=20)
+plt.grid(True)
+plt.legend(fontsize=15)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(11,7))
+for y in y_vals:
+    plt.plot(eps_grid, ci[y], '--o', label=f'y=\u00b1{y}')
+plt.xlabel(r'$\\epsilon$', fontsize=24)
+plt.ylabel('68% half-size CI', fontsize=20)
+plt.grid(True)
+plt.legend(fontsize=15)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(11,7))
+for y in y_vals:
+    plt.plot(eps_grid, gof[y], '--o', label=f'y=\u00b1{y}')
+plt.xlabel(r'$\\epsilon$', fontsize=24)
+plt.ylabel(r'$\\chi^2$', fontsize=20)
+plt.grid(True)
+plt.legend(fontsize=15)
+plt.tight_layout()
+plt.show()
+```
+
+### Fully correlated
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from copy import deepcopy
+
+eps_grid = np.linspace(0., 0.6, 7)
+y_vals = [1, 2, 3]
+comb = GVMCombination('correlations/full_corr.yaml')
+base_info = comb.input_data()
+cv = {y: [] for y in y_vals}
+ci = {y: [] for y in y_vals}
+gof = {y: [] for y in y_vals}
+for y in y_vals:
+    for eps in eps_grid:
+        info = deepcopy(base_info)
+        info['data']['measurements'][0]['central'] = float(y)
+        info['data']['measurements'][1]['central'] = -float(y)
+        info['syst']['sys1']['epsilon'] = float(eps)
+        comb.update_data(info)
+        cv[y].append(comb.fit_results['mu'])
+        ci[y].append(comb.confidence_interval()[2])
+        gof[y].append(comb.goodness_of_fit())
+
+plt.figure(figsize=(11,7))
+for y in y_vals:
+    plt.plot(eps_grid, cv[y], '--o', label=f'y=\u00b1{y}')
+plt.xlabel(r'$\\epsilon$', fontsize=24)
+plt.ylabel('Central value', fontsize=20)
+plt.grid(True)
+plt.legend(fontsize=15)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(11,7))
+for y in y_vals:
+    plt.plot(eps_grid, ci[y], '--o', label=f'y=\u00b1{y}')
+plt.xlabel(r'$\\epsilon$', fontsize=24)
+plt.ylabel('68% half-size CI', fontsize=20)
+plt.grid(True)
+plt.legend(fontsize=15)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(11,7))
+for y in y_vals:
+    plt.plot(eps_grid, gof[y], '--o', label=f'y=\u00b1{y}')
+plt.xlabel(r'$\\epsilon$', fontsize=24)
+plt.ylabel(r'$\\chi^2$', fontsize=20)
+plt.grid(True)
+plt.legend(fontsize=15)
+plt.tight_layout()
+plt.show()
+```
+
+### Hybrid correlation
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from copy import deepcopy
+
+eps_grid = np.linspace(0., 0.6, 7)
+y_vals = [1, 2, 3]
+comb = GVMCombination('correlations/hybrid_corr.yaml')
+base_info = comb.input_data()
+cv = {y: [] for y in y_vals}
+ci = {y: [] for y in y_vals}
+gof = {y: [] for y in y_vals}
+for y in y_vals:
+    for eps in eps_grid:
+        info = deepcopy(base_info)
+        info['data']['measurements'][0]['central'] = float(y)
+        info['data']['measurements'][1]['central'] = -float(y)
+        info['syst']['sys1']['epsilon'] = float(eps)
+        comb.update_data(info)
+        cv[y].append(comb.fit_results['mu'])
+        ci[y].append(comb.confidence_interval()[2])
+        gof[y].append(comb.goodness_of_fit())
+
+plt.figure(figsize=(11,7))
+for y in y_vals:
+    plt.plot(eps_grid, cv[y], '--o', label=f'y=\u00b1{y}')
+plt.xlabel(r'$\\epsilon$', fontsize=24)
+plt.ylabel('Central value', fontsize=20)
+plt.grid(True)
+plt.legend(fontsize=15)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(11,7))
+for y in y_vals:
+    plt.plot(eps_grid, ci[y], '--o', label=f'y=\u00b1{y}')
+plt.xlabel(r'$\\epsilon$', fontsize=24)
+plt.ylabel('68% half-size CI', fontsize=20)
+plt.grid(True)
+plt.legend(fontsize=15)
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(11,7))
+for y in y_vals:
+    plt.plot(eps_grid, gof[y], '--o', label=f'y=\u00b1{y}')
+plt.xlabel(r'$\\epsilon$', fontsize=24)
+plt.ylabel(r'$\\chi^2$', fontsize=20)
+plt.grid(True)
+plt.legend(fontsize=15)
+plt.tight_layout()
+plt.show()
+```
