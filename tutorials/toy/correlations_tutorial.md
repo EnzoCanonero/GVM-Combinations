@@ -315,6 +315,10 @@ plt.savefig("decorrelated_gof.pdf")
 plt.show()
 ```
 
+![Decorrelated central value](decorrelated_cv.pdf)
+![Decorrelated CI](decorrelated_ci.pdf)
+![Decorrelated goodness-of-fit](decorrelated_gof.pdf)
+
 ### Diagonal correlation
 ```python
 import numpy as np
@@ -372,6 +376,10 @@ plt.tight_layout()
 plt.savefig("diag_gof.pdf")
 plt.show()
 ```
+
+![Diagonal central value](diag_cv.pdf)
+![Diagonal CI](diag_ci.pdf)
+![Diagonal goodness-of-fit](diag_gof.pdf)
 
 ### Fully correlated
 ```python
@@ -431,6 +439,10 @@ plt.savefig("full_gof.pdf")
 plt.show()
 ```
 
+![Fully correlated central value](full_cv.pdf)
+![Fully correlated CI](full_ci.pdf)
+![Fully correlated goodness-of-fit](full_gof.pdf)
+
 ### Hybrid correlation
 ```python
 import numpy as np
@@ -488,3 +500,7 @@ plt.tight_layout()
 plt.savefig("hybrid_gof.pdf")
 plt.show()
 ```
+
+![Hybrid central value](hybrid_cv.pdf)
+![Hybrid CI](hybrid_ci.pdf)
+![Hybrid goodness-of-fit](hybrid_gof.pdf)
