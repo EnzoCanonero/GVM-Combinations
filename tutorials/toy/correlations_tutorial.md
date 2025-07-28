@@ -2,6 +2,8 @@
 
 In this notebook we explore how different correlation assumptions impact a simple two-measurement combination. Both measurements provide an estimate of the same quantity with central values +1 and -1. Their statistical uncertainties are $\sqrt{2}$ and we introduce a single systematic source also of magnitude $\sqrt{2}$. All error-on-error terms ($\epsilon$) are set to zero so only the correlations influence the result.
 
+For systematic uncertainties without an associated error-on-the-error, the log-likelihood is constructed using the BLUE approach, as described in Sec. 2 of [arXiv:2407.05322](https://arxiv.org/abs/2407.05322). 
+
 ```python
 import os, sys
 
@@ -13,7 +15,7 @@ if gvm_root not in sys.path:
 from gvm_toolkit import GVMCombination
 ```
 
-The following cells build a `GVMCombination` for each correlation scenario. After running the fit we print the estimated mean (`mu_hat`), the 68% confidence interval and the goodness-of-fit (chi-square) value.
+The following cells build a `GVMCombination` for different correlation scenarios. After running the fit we print the estimated mean (`mu_hat`), the 68% confidence interval and the goodness-of-fit (chi-square) value.
 
 ## 1. Decorrelated case
 Here the systematic uncertainty is defined as independent for each measurement (no correlation matrix).
@@ -56,9 +58,15 @@ decorrelated: mu_hat=0.0000, CI=(-1.4188, 1.4138), chi2=0.500
 
 ## 2. Correlation examples
 We now compare three different correlation matrices for the systematic uncertainty:
-1. **Diagonal**: off-diagonal terms are zero so the systematic acts independently.
-2. **Fully correlated**: all coefficients are one so the systematic behaves as one shared nuisance parameter.
-3. **Hybrid**: the off-diagonal coefficient is 0.5 representing a partial correlation.
+
+1. **Diagonal**: the off-diagonal terms are zero, so the systematic source acts independently on each measurement.  
+   This is equivalent to specifying the `type` as `independent`. However, the `independent` and `diagonal` options are no longer equivalent if an error-on-error term different from zero is used — we will demonstrate this point later.
+
+2. **Fully correlated**: all coefficients are equal to one.  
+   If the NP parameter approach is used instead of the BLUE formulation, this corresponds to modelling the systematic as a single shared nuisance parameter.
+
+3. **Hybrid**: the off-diagonal coefficient is 0.5, representing a partially correlated systematic.
+
 
 ### Diagonal
 `diag_corr.yaml`
@@ -180,7 +188,9 @@ hybrid_corr: mu_hat=0.0000, CI=(-1.5888, 1.5813), chi2=0.667
 ```
 
 ## 3. Non-diagonal statistical covariance
-The same systematic is fully correlated as above, but the statistical uncertainties are supplied via a covariance matrix with non-zero off-diagonal terms.
+The same systematic is fully correlated as above, but this time the statistical uncertainties are specified via a covariance matrix that includes non-zero off-diagonal terms.
+
+Unlike systematic uncertainties — which can be described through correlation matrices — statistical uncertainties must be provided directly as a **covariance matrix**. This means that if the statistical uncertainties are $\sqrt{2}$ for both measurements, and a correlation coefficient of $0.5$ is used, then the corresponding covariance matrix is:
 
 `stat_cov.yaml`
 ```yaml
