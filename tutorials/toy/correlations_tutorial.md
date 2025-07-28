@@ -289,6 +289,7 @@ plt.ylabel('Central value', fontsize=20)
 plt.grid(True)
 plt.legend(fontsize=15)
 plt.tight_layout()
+plt.savefig("decorrelated_cv.pdf")
 plt.show()
 
 plt.figure(figsize=(11,7))
@@ -299,6 +300,7 @@ plt.ylabel('68% half-size CI', fontsize=20)
 plt.grid(True)
 plt.legend(fontsize=15)
 plt.tight_layout()
+plt.savefig("decorrelated_ci.pdf")
 plt.show()
 
 plt.figure(figsize=(11,7))
@@ -309,8 +311,10 @@ plt.ylabel(r'$\\chi^2$', fontsize=20)
 plt.grid(True)
 plt.legend(fontsize=15)
 plt.tight_layout()
+plt.savefig("decorrelated_gof.pdf")
 plt.show()
 ```
+
 
 ### Diagonal correlation
 ```python
@@ -344,6 +348,7 @@ plt.ylabel('Central value', fontsize=20)
 plt.grid(True)
 plt.legend(fontsize=15)
 plt.tight_layout()
+plt.savefig("diag_cv.pdf")
 plt.show()
 
 plt.figure(figsize=(11,7))
@@ -354,6 +359,7 @@ plt.ylabel('68% half-size CI', fontsize=20)
 plt.grid(True)
 plt.legend(fontsize=15)
 plt.tight_layout()
+plt.savefig("diag_ci.pdf")
 plt.show()
 
 plt.figure(figsize=(11,7))
@@ -364,8 +370,10 @@ plt.ylabel(r'$\\chi^2$', fontsize=20)
 plt.grid(True)
 plt.legend(fontsize=15)
 plt.tight_layout()
+plt.savefig("diag_gof.pdf")
 plt.show()
 ```
+
 
 ### Fully correlated
 ```python
@@ -399,6 +407,7 @@ plt.ylabel('Central value', fontsize=20)
 plt.grid(True)
 plt.legend(fontsize=15)
 plt.tight_layout()
+plt.savefig("full_cv.pdf")
 plt.show()
 
 plt.figure(figsize=(11,7))
@@ -409,6 +418,7 @@ plt.ylabel('68% half-size CI', fontsize=20)
 plt.grid(True)
 plt.legend(fontsize=15)
 plt.tight_layout()
+plt.savefig("full_ci.pdf")
 plt.show()
 
 plt.figure(figsize=(11,7))
@@ -419,8 +429,10 @@ plt.ylabel(r'$\\chi^2$', fontsize=20)
 plt.grid(True)
 plt.legend(fontsize=15)
 plt.tight_layout()
+plt.savefig("full_gof.pdf")
 plt.show()
 ```
+
 
 ### Hybrid correlation
 ```python
@@ -454,6 +466,7 @@ plt.ylabel('Central value', fontsize=20)
 plt.grid(True)
 plt.legend(fontsize=15)
 plt.tight_layout()
+plt.savefig("hybrid_cv.pdf")
 plt.show()
 
 plt.figure(figsize=(11,7))
@@ -464,6 +477,7 @@ plt.ylabel('68% half-size CI', fontsize=20)
 plt.grid(True)
 plt.legend(fontsize=15)
 plt.tight_layout()
+plt.savefig("hybrid_ci.pdf")
 plt.show()
 
 plt.figure(figsize=(11,7))
@@ -474,5 +488,7 @@ plt.ylabel(r'$\\chi^2$', fontsize=20)
 plt.grid(True)
 plt.legend(fontsize=15)
 plt.tight_layout()
+plt.savefig("hybrid_gof.pdf")
 plt.show()
 ```
+
