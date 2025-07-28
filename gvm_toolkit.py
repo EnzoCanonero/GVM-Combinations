@@ -625,7 +625,8 @@ class GVMCombination:
                 diag_Wt_sq = diag_Wt ** 2
                 b_lik += np.sum((4 * e ** 2 / S_s) * diag_W - (e ** 2 / S_s ** 2) * diag_W_sq)
                 b_theta += np.sum((4 * e ** 2 / S_s) * diag_Wt - (e ** 2 / S_s ** 2) * diag_Wt_sq)
-                b_chi2 += 3 * N
+                b_chi2 += 3 * N * e ** 2
+                
         b_profile = 1 + b_lik - b_theta
         b_chi2 = float(len(self.y) - 1) + b_chi2 - b_lik
         return b_profile, b_chi2
