@@ -62,8 +62,7 @@ We now compare three different correlation matrices for the systematic uncertain
 1. **Diagonal**: the off-diagonal terms are zero, so the systematic source acts independently on each measurement.  
    This is equivalent to specifying the `type` as `independent`. However, the `independent` and `diagonal` options are no longer equivalent if an error-on-error term different from zero is used — we will demonstrate this point later.
 
-2. **Fully correlated**: all coefficients are equal to one.  
-   If the NP parameter approach is used instead of the BLUE formulation, this corresponds to modelling the systematic as a single shared nuisance parameter.
+2. **Fully correlated**: all coefficients are equal to one. If the NP parameter approach is used instead of the BLUE formulation, this corresponds to modelling the systematic as a single shared nuisance parameter.
 
 3. **Hybrid**: the off-diagonal coefficient is 0.5, representing a partially correlated systematic.
 
@@ -191,6 +190,9 @@ hybrid_corr: mu_hat=0.0000, CI=(-1.5888, 1.5813), chi2=0.667
 The same systematic is fully correlated as above, but this time the statistical uncertainties are specified via a covariance matrix that includes non-zero off-diagonal terms.
 
 Unlike systematic uncertainties — which can be described through correlation matrices — statistical uncertainties must be provided directly as a **covariance matrix**. This means that if the statistical uncertainties are $\sqrt{2}$ for both measurements, and a correlation coefficient of $0.5$ is used, then the corresponding covariance matrix is:
+
+2 1
+1 2
 
 `stat_cov.yaml`
 ```yaml
