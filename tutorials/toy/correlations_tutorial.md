@@ -191,8 +191,7 @@ The same systematic is fully correlated as above, but this time the statistical 
 
 Unlike systematic uncertainties — which can be described through correlation matrices — statistical uncertainties must be provided directly as a **covariance matrix**. This means that if the statistical uncertainties are $\sqrt{2}$ for both measurements, and a correlation coefficient of $0.5$ is used, then the corresponding covariance matrix is:
 
-2 1
-1 2
+2 1<br>1 2
 
 `stat_cov.yaml`
 ```yaml
