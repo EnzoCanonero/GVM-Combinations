@@ -336,7 +336,7 @@ Three effects can be observed:
 
 3. The **goodness-of-fit decreases** with increasing $\varepsilon$. Again, this degradation is more significant when the measurements are mutually inconsistent.
 
-![Central Values][decorrelated_ci.png]
+![Central Values](decorrelated_ci.png)
 
 
 ### Diagonal correlation
