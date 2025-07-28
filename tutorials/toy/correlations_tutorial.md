@@ -330,13 +330,15 @@ plt.show()
 
 Three effects can be observed:
 
+![Central Values](decorrelated_cv.png)
+![Confidence Interval](decorrelated_ci.png)
+![Goodness of Fit](decorrelated_gof.png)
+
 1. The **central values remain constant**: the combination is symmetric, as the two measurements have identical statistical and systematic uncertainties.
 
 2. The **confidence interval widens** as $\varepsilon$ increases. Moreover, the more mutually incompatible the measurements are, the more pronounced this effect becomes.
 
 3. The **goodness-of-fit decreases** with increasing $\varepsilon$. Again, this degradation is more significant when the measurements are mutually inconsistent.
-
-![Central Values](decorrelated_ci.png)
 
 
 ### Diagonal correlation
@@ -396,6 +398,10 @@ plt.savefig('diag_gof.png')
 plt.show()
 ```
 
+![Central Values](diag_cv.png)
+![Confidence Interval](diag_ci.png)
+![Goodness of Fit](diag_gof.png)
+
 
 ### Fully correlated
 ```python
@@ -453,7 +459,9 @@ plt.tight_layout()
 plt.savefig('full_gof.png')
 plt.show()
 ```
-
+![Central Values](full_cv.png)
+![Confidence Interval](full_ci.png)
+![Goodness of Fit](full_gof.png)
 
 ### Hybrid correlation
 ```python
@@ -511,4 +519,6 @@ plt.tight_layout()
 plt.savefig('hybrid_gof.png')
 plt.show()
 ```
-
+![Central Values](hybrid_cv.png)
+![Confidence Interval](hybrid_ci.png)
+![Goodness of Fit](hybrid_gof.png)
