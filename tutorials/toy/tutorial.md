@@ -80,9 +80,103 @@ print(f'χ² = {chi_2:.3f}, significance = {significance}')
 
 We now compare three different correlation matrices for the systematic uncertainty:
 1. **Diagonal**: off-diagonal terms are zero so the systematic acts independently.
+
+   `diag_corr.yaml`
+   ```yaml
+   global:
+     name: diag_corr
+     n_meas: 2
+     n_syst: 1
+     corr_dir: tutorials/toy/input_files/correlations
+
+   data:
+     measurements:
+       - label: m1
+         central: 1.5
+         stat_error: 1.0
+       - label: m2
+         central: -1.5
+         stat_error: 1.0
+
+   syst:
+     - name: sys1
+       shifts: [0.5, 1.0]
+       type:
+         dependent: diagonal
+       epsilon: 0.0
+   ```
+
+   `diag_corr.txt`
+   ```
+   1 0
+   0 1
+   ```
+
 2. **Hybrid**: the off-diagonal coefficient is 0.75 representing a partial correlation.
+
+   `hybrid_corr.yaml`
+   ```yaml
+   global:
+     name: hybrid_corr
+     n_meas: 2
+     n_syst: 1
+     corr_dir: tutorials/toy/input_files/correlations
+
+   data:
+     measurements:
+       - label: m1
+         central: 1.5
+         stat_error: 1.0
+       - label: m2
+         central: -1.5
+         stat_error: 1.0
+
+   syst:
+     - name: sys1
+       shifts: [0.5, 1.0]
+       type:
+         dependent: hybrid_corr.txt
+       epsilon: 0.0
+   ```
+
+   `hybrid_corr.txt`
+   ```
+   1 0.75
+   0.75 1
+   ```
+
 3. **Fully correlated**: all coefficients are one so the systematic behaves as one shared nuisance parameter.
 
+   `full_corr.yaml`
+   ```yaml
+   global:
+     name: full_corr
+     n_meas: 2
+     n_syst: 1
+     corr_dir: tutorials/toy/input_files/correlations
+
+   data:
+     measurements:
+       - label: m1
+         central: 1.5
+         stat_error: 1.0
+       - label: m2
+         central: -1.5
+         stat_error: 1.0
+
+   syst:
+     - name: sys1
+       shifts: [0.5, 1.0]
+       type:
+         dependent: ones
+       epsilon: 0.0
+   ```
+
+   `full_corr.txt`
+   ```
+   1 1
+   1 1
+   ```
 
 
 ```python
