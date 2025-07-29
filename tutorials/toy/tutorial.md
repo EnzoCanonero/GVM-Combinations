@@ -229,6 +229,40 @@ The same systematic is fully correlated as above, but this time the statistical 
 
 Unlike systematic uncertainties — which can be described through correlation matrices — statistical uncertainties must be provided directly as a **covariance matrix**.
 
+`stat_cov.yaml`
+```yaml
+global:
+  name: stat_cov
+  n_meas: 2
+  n_syst: 1
+  corr_dir: tutorials/toy/input_files/correlations
+
+data:
+  stat_cov_path: stat_cov.txt
+  measurements:
+    - label: m1
+      central: 1.5
+    - label: m2
+      central: -1.5
+
+syst:
+  - name: sys1
+    shifts: [0.5, 1.0]
+    type:
+      dependent: ones
+    epsilon: 0.0
+```
+
+`stat_cov.txt`
+```
+2 1
+1 2
+```
+The fully correlated systematic corresponds to a matrix of ones:
+```
+1 1
+1 1
+```
 
 ```python
 comb = GVMCombination('input_files/stat_cov.yaml')
