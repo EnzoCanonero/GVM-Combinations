@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------
-#  File:  LHC_mass_combination_cov.yaml
+#  File:  LHC_mass_combination.yaml
 #  Schema version: 1
 # -----------------------------------------------------------------
 
@@ -13,35 +13,49 @@ data:
   measurements:
     - label: a
       central: 173.79
+      stat_error: 0.54
     - label: b
       central: 172.33
+      stat_error: 0.75
     - label: c
       central: 175.06
+      stat_error: 1.35
     - label: d
       central: 172.99
+      stat_error: 0.41
     - label: e
       central: 172.08
+      stat_error: 0.39
     - label: f
       central: 173.72
+      stat_error: 0.55
     - label: g
       central: 172.50
+      stat_error: 0.43
     - label: h
       central: 173.49
+      stat_error: 0.43
     - label: i
       central: 173.49
+      stat_error: 0.69
     - label: j
       central: 172.22
+      stat_error: 0.18
     - label: k
       central: 172.35
+      stat_error: 0.16
     - label: l
       central: 172.32
+      stat_error: 0.25
     - label: m
       central: 172.95
+      stat_error: 0.77
     - label: n
       central: 173.50
+      stat_error: 3.00
     - label: o
       central: 173.68
-  stat_cov_path: stat_cov_lhc.txt
+      stat_error: 0.20
 
 syst:
   - name: LHCJES1
@@ -59,7 +73,7 @@ syst:
   - name: LHCbJES
     shifts: [0.68, 0.06, 0.62, 0.30, 0.03, 0.34, 0.70, 0.61, 0.49, 0.37, 0.32, 0.29, 0.38, 0.00, 0.00]
     corr_file: LHCbJES.txt
-    epsilon: 0.01
+    epsilon: 0.00
   - name: LHCgJES
     shifts: [0.03, 0.28, 0.10, 0.02, 0.21, 0.05, 0.00, 0.00, 0.00, 0.07, 0.08, 0.02, 0.00, 0.00, 0.00]
     corr_file: LHCgJES.txt
