@@ -106,7 +106,7 @@ We now compare three different correlation matrices for the systematic uncertain
        epsilon: 0.0
    ```
 
-   `diag_corr.txt`
+   The diagonal option corresponds to:
    ```
    1 0
    0 1
@@ -172,7 +172,7 @@ We now compare three different correlation matrices for the systematic uncertain
        epsilon: 0.0
    ```
 
-   `full_corr.txt`
+   The ones option corresponds to:
    ```
    1 1
    1 1
