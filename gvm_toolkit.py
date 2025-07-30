@@ -124,7 +124,13 @@ class GVMCombination:
                 )
             shifts = [float(x) for x in shift_vals]
 
-            corr_spec = shift.get('correlation', item.get('correlation', 'diagonal'))
+            # ``correlation`` may be specified directly or via the legacy
+            # ``corr_file`` field.  The ``shift`` block is preferred.
+            corr_spec = shift.get('correlation', item.get('correlation'))
+            if corr_spec is None and 'corr_file' in item:
+                corr_spec = item['corr_file']
+            if corr_spec is None:
+                corr_spec = 'diagonal'
             if corr_spec == 'diagonal':
                 corr = np.eye(n_meas)
             elif corr_spec == 'ones':
@@ -132,16 +138,35 @@ class GVMCombination:
             else:
                 path_corr = corr_spec.replace('${global.corr_dir}', corr_dir)
                 if not os.path.isabs(path_corr):
+                    # First try relative to the configuration file directory
                     cand = os.path.join(base_dir, path_corr)
                     if os.path.exists(cand):
                         path_corr = cand
                     elif corr_dir:
-                        path_corr = os.path.join(corr_dir, path_corr)
+                        # ``corr_dir`` might be relative either to the
+                        # configuration directory or its parent.  Try both.
+                        cand = os.path.join(base_dir, corr_dir, path_corr)
+                        if os.path.exists(cand):
+                            path_corr = cand
+                        else:
+                            cand = os.path.join(os.path.dirname(base_dir), corr_dir, path_corr)
+                            if os.path.exists(cand):
+                                path_corr = cand
+                            else:
+                                # Fallback: treat ``corr_dir`` as absolute or
+                                # working-directory relative.
+                                path_corr = os.path.join(corr_dir, path_corr)
                 corr = np.loadtxt(path_corr, dtype=float)
 
-            eoe = item.get('error-on-error', {})
-            eps_val = float(eoe.get('value', 0.0))
-            eps_type = eoe.get('type', 'dependent')
+            # ``error-on-error`` replaces the legacy ``epsilon`` field.  If the
+            # new block is missing, fall back to ``epsilon`` when present.
+            eoe = item.get('error-on-error')
+            if eoe is None:
+                eps_val = float(item.get('epsilon', 0.0))
+                eps_type = 'dependent'
+            else:
+                eps_val = float(eoe.get('value', 0.0))
+                eps_type = eoe.get('type', 'dependent')
             if eps_type not in ('dependent', 'independent'):
                 raise ValueError(
                     f'Systematic "{name}" has unrecognised error-on-error type "{eps_type}"'
