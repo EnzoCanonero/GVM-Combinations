@@ -27,14 +27,17 @@ class GVMCombination:
             for sname in cfg['syst']
         }
 
-        self.syst_type = {s: cfg['syst'][s]['type'] for s in cfg['syst']}
-
         self.corr = {s: np.asarray(cfg['syst'][s]['corr'], dtype=float)
                      for s in cfg['syst']}
 
+        self.eoe_type = {
+            s: cfg['syst'][s]['error-on-error']['type']
+            for s in cfg['syst']
+        }
+
         self.uncertain_systematics = {
-            s: cfg['syst'][s]['epsilon']
-            for s in cfg['syst'] if cfg['syst'][s]['epsilon'] != 0.0
+            s: cfg['syst'][s]['error-on-error']['value']
+            for s in cfg['syst'] if cfg['syst'][s]['error-on-error']['value'] != 0.0
         }
 
         self._validate_combination()
@@ -109,46 +112,45 @@ class GVMCombination:
         syst_dict = {}
         for item in syst_entries:
             name = item['name']
-            shifts = [float(x) for x in item['shifts']]
-            tinfo = item.get('type')
-            if tinfo is None:
-                raise KeyError(f'Systematic "{name}" must define "type"')
 
-            syst_type = None
-            corr = np.empty((0, 0))
-
-            if isinstance(tinfo, dict):
-                if 'dependent' in tinfo:
-                    syst_type = 'dependent'
-                    dep = tinfo['dependent']
-                    if dep == 'diagonal':
-                        corr = np.eye(n_meas)
-                    elif dep == 'ones':
-                        corr = np.ones((n_meas, n_meas))
-                    else:
-                        path_corr = dep.replace('${global.corr_dir}', corr_dir)
-                        if not os.path.isabs(path_corr):
-                            cand = os.path.join(base_dir, path_corr)
-                            if os.path.exists(cand):
-                                path_corr = cand
-                            elif corr_dir:
-                                path_corr = os.path.join(corr_dir, path_corr)
-                        corr = np.loadtxt(path_corr, dtype=float)
-                elif 'independent' in tinfo:
-                    syst_type = 'independent'
-                else:
-                    raise ValueError(f'Unrecognised type for systematic "{name}"')
-            elif isinstance(tinfo, str) and tinfo == 'independent':
-                syst_type = 'independent'
+            shift = item.get('shift', {})
+            if 'value' in shift:
+                shift_vals = shift['value']
+            elif 'shifts' in item:
+                shift_vals = item['shifts']
             else:
-                raise ValueError(f'Invalid "type" specification for systematic "{name}"')
+                raise KeyError(
+                    f'Systematic "{name}" must define shift values'
+                )
+            shifts = [float(x) for x in shift_vals]
 
-            eps = float(item.get('epsilon', 0.0))
+            corr_spec = shift.get('correlation', item.get('correlation', 'diagonal'))
+            if corr_spec == 'diagonal':
+                corr = np.eye(n_meas)
+            elif corr_spec == 'ones':
+                corr = np.ones((n_meas, n_meas))
+            else:
+                path_corr = corr_spec.replace('${global.corr_dir}', corr_dir)
+                if not os.path.isabs(path_corr):
+                    cand = os.path.join(base_dir, path_corr)
+                    if os.path.exists(cand):
+                        path_corr = cand
+                    elif corr_dir:
+                        path_corr = os.path.join(corr_dir, path_corr)
+                corr = np.loadtxt(path_corr, dtype=float)
+
+            eoe = item.get('error-on-error', {})
+            eps_val = float(eoe.get('value', 0.0))
+            eps_type = eoe.get('type', 'dependent')
+            if eps_type not in ('dependent', 'independent'):
+                raise ValueError(
+                    f'Systematic "{name}" has unrecognised error-on-error type "{eps_type}"'
+                )
+
             val_map = {lab: shifts[meas_map[lab]] for lab in labels}
             syst_dict[name] = {
                 'values': val_map,
-                'epsilon': eps,
-                'type': syst_type,
+                'error-on-error': {'value': eps_val, 'type': eps_type},
                 'corr': corr,
             }
 
@@ -196,24 +198,20 @@ class GVMCombination:
                 f'Expected {self.n_syst} correlation matrices, got {len(self.corr)}')
 
         for name, mat in self.corr.items():
-            stype = self.syst_type[name]
-            if stype == 'dependent':
-                if mat.shape != (self.n_meas, self.n_meas):
+            if mat.shape != (self.n_meas, self.n_meas):
+                raise ValueError(
+                    f'Correlation matrix {name} must be {self.n_meas}x{self.n_meas}')
+            diff = np.argwhere(~np.isclose(mat, mat.T, rtol=1e-7, atol=1e-8))
+            for i, j in diff:
+                if i < j:
+                    warnings.warn(
+                        f'Correlation matrix "{name}" asymmetric for measurements '
+                        f'{self.measurements[i]} and {self.measurements[j]}: '
+                        f'{mat[i, j]} vs {mat[j, i]}')
+            if self.eoe_type.get(name, 'dependent') == 'independent':
+                if not np.allclose(mat, np.eye(self.n_meas)):
                     raise ValueError(
-                        f'Correlation matrix {name} must be {self.n_meas}x{self.n_meas}')
-                diff = np.argwhere(~np.isclose(mat, mat.T, rtol=1e-7, atol=1e-8))
-                for i, j in diff:
-                    if i < j:
-                        warnings.warn(
-                            f'Correlation matrix "{name}" asymmetric for measurements '
-                            f'{self.measurements[i]} and {self.measurements[j]}: '
-                            f'{mat[i, j]} vs {mat[j, i]}')
-            elif stype == 'independent':
-                if mat.size != 0:
-                    raise ValueError(
-                        f'Systematic {name} is independent so corr matrix must be empty')
-            else:
-                raise ValueError(f'Unknown systematic type "{stype}" for {name}')
+                        f'Systematic {name} has independent error-on-error but correlation is not diagonal')
 
     # ------------------------------------------------------------------
     def _reduce_corr(self, rho, src_name=None):
@@ -266,10 +264,7 @@ class GVMCombination:
         for src, rho in self.corr.items():
             if src not in self.uncertain_systematics:
                 sigma = self.syst[src]
-                if self.syst_type[src] == 'dependent':
-                    V_syst += np.outer(sigma, sigma) * rho
-                else:  # independent
-                    V_syst += np.diag(sigma ** 2)
+                V_syst += np.outer(sigma, sigma) * rho
         V_blue = V_stat + V_syst
         V_inv = np.linalg.inv(V_blue)
 
@@ -277,7 +272,7 @@ class GVMCombination:
         Gamma_factors = {}
         for src, sigma in self.syst.items():
             if src in self.uncertain_systematics:
-                if self.syst_type[src] == 'dependent':
+                if self.eoe_type.get(src, 'dependent') == 'dependent':
                     rho = self.corr[src]
                     red, Gamma = self._reduce_corr(rho, src_name=src)
                     for i in range(Gamma.shape[0]):
@@ -290,7 +285,7 @@ class GVMCombination:
                         red = red[~zero_cols][:, ~zero_cols]
                     C_inv[src] = np.linalg.inv(red)
                     Gamma_factors[src] = Gamma
-                else:  # independent
+                else:
                     Gamma_factors[src] = np.diag(sigma)
                     C_inv[src] = np.eye(n)
         return V_inv, C_inv, Gamma_factors
@@ -310,16 +305,16 @@ class GVMCombination:
         for i, k in enumerate(keys):
             theta = thetas[i]
             eps = self.uncertain_systematics[k]
-            if self.syst_type[k] == 'dependent':
+            if self.eoe_type.get(k, 'dependent') == 'dependent':
                 Cinv = self.C_inv[k]
                 N_s = len(theta)
                 if eps > 0:
-                    chi2_u += (N_s + 1./(2.*eps**2)) * np.log(1. + 2.*eps**2 * theta @ Cinv @ theta)
+                    chi2_u += (N_s + 1.0 / (2.0 * eps ** 2)) * np.log(1. + 2. * eps ** 2 * theta @ Cinv @ theta)
                 else:
                     chi2_u += theta @ Cinv @ theta
             else:
                 if eps > 0:
-                    chi2_u += np.sum((1 + 1./(2.*eps**2)) * np.log(1. + 2.*eps**2 * theta**2))
+                    chi2_u += np.sum((1 + 1.0 / (2.0 * eps ** 2)) * np.log(1. + 2. * eps ** 2 * theta ** 2))
                 else:
                     chi2_u += theta @ theta
         return 0.5 * (chi2_y + chi2_u)
@@ -454,13 +449,17 @@ class GVMCombination:
             },
             'syst': {
                 sname: {
-                    'values': {
-                        m: float(self.syst[sname][i])
-                        for i, m in enumerate(meas)
+                    'shift': {
+                        'value': {
+                            m: float(self.syst[sname][i])
+                            for i, m in enumerate(meas)
+                        },
+                        'correlation': self.corr[sname].copy(),
                     },
-                    'epsilon': self.uncertain_systematics.get(sname, 0.0),
-                    'type': self.syst_type[sname],
-                    'corr': self.corr[sname].copy(),
+                    'error-on-error': {
+                        'value': self.uncertain_systematics.get(sname, 0.0),
+                        'type': self.eoe_type[sname],
+                    },
                 }
                 for sname in self.syst
             },
@@ -494,22 +493,36 @@ class GVMCombination:
         for sname, entry in syst_info.items():
             if sname not in self.syst:
                 continue
-            if 'values' in entry:
+
+            shift = entry.get('shift', {})
+            if 'value' in shift:
+                for m, val in shift['value'].items():
+                    self.syst[sname][idx[m]] = float(val)
+            elif 'values' in entry:
                 for m, val in entry['values'].items():
                     self.syst[sname][idx[m]] = float(val)
-            if 'corr' in entry:
+
+            if 'correlation' in shift:
+                mat = np.asarray(shift['correlation'], dtype=float)
+                self.corr[sname] = mat
+            elif 'corr' in entry:
                 mat = np.asarray(entry['corr'], dtype=float)
                 self.corr[sname] = mat
-            if 'type' in entry:
-                self.syst_type[sname] = entry['type']
-                if entry['type'] == 'independent' and 'corr' not in entry:
-                    self.corr[sname] = np.empty((0, 0))
-            if 'epsilon' in entry:
-                e = float(entry['epsilon'])
-                if e == 0:
-                    self.uncertain_systematics.pop(sname, None)
-                else:
-                    self.uncertain_systematics[sname] = e
+
+            if 'error-on-error' in entry:
+                eoe = entry['error-on-error']
+                if 'type' in eoe:
+                    if eoe['type'] not in ('dependent', 'independent'):
+                        raise ValueError(
+                            f'Systematic "{sname}" has unrecognised error-on-error type "{eoe["type"]}"'
+                        )
+                    self.eoe_type[sname] = eoe['type']
+                if 'value' in eoe:
+                    e = float(eoe['value'])
+                    if e == 0:
+                        self.uncertain_systematics.pop(sname, None)
+                    else:
+                        self.uncertain_systematics[sname] = e
 
         self._validate_combination()
 
@@ -550,12 +563,7 @@ class GVMCombination:
                 idx_p = idxs[j]
                 GsVinGp = Gs.T @ V_G[kp]
                 if ks == kp:
-                    if self.syst_type[ks] == 'dependent':
-                        F[np.ix_(idx_s, idx_p)] = GsVinGp + (1.0 / S_s) * Cinv_s
-                    else:
-                        F[np.ix_(idx_s, idx_p)] = (
-                            GsVinGp + Cinv_s * (1.0 / S_s)[:, None]
-                        )
+                    F[np.ix_(idx_s, idx_p)] = GsVinGp + (1.0 / S_s) * Cinv_s
                 else:
                     F[np.ix_(idx_s, idx_p)] = GsVinGp
         return F
@@ -588,10 +596,10 @@ class GVMCombination:
         N_s = sizes
         S = []
         for th, k, C, e, N in zip(thetas, keys, C_inv_list, eps, N_s):
-            if self.syst_type[k] == 'dependent':
-                S.append((1 + 2*e**2 * th @ C @ th) / (1 + 2*e**2 * N))
+            if self.eoe_type.get(k, 'dependent') == 'dependent':
+                S.append((1 + 2 * e ** 2 * th @ C @ th) / (1 + 2 * e ** 2 * N))
             else:
-                S.append((1 + 2*e**2 * th**2) / (1 + 2*e**2))
+                S.append((1 + 2 * e ** 2 * th ** 2) / (1 + 2 * e ** 2))
         F = self.compute_FIM(S)
         W_full = np.linalg.inv(F)[1:, 1:]
         W_theta = np.linalg.inv(F[1:, 1:])
@@ -602,7 +610,7 @@ class GVMCombination:
             ei = si + N
             W_s = W_full[si:ei, si:ei]
             Wt_s = W_theta[si:ei, si:ei]
-            if self.syst_type[keys[s]] == 'dependent':
+            if self.eoe_type.get(keys[s], 'dependent') == 'dependent':
                 trWC = np.trace(W_s @ Cinv)
                 trWCWC = np.trace(W_s @ Cinv @ W_s @ Cinv)
                 trW_t_C = np.trace(Wt_s @ Cinv)
