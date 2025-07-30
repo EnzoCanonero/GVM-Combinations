@@ -54,9 +54,9 @@ class GVMCombination:
             data = yaml.safe_load(f)
 
         cfg = {}
-        glob = data.get('global', {})
-        corr_dir = glob.get('corr_dir', '')
         try:
+            glob = data['global']
+            corr_dir = glob.get('corr_dir', '')
             name = glob['name']
             n_meas = int(glob['n_meas'])
             n_syst = int(glob['n_syst'])
@@ -71,10 +71,11 @@ class GVMCombination:
             'n_syst': n_syst,
         }
 
-        combo = data.get('data', {})
-        if 'measurements' not in combo:
-            raise KeyError('Data configuration must define "measurements"')
-        meas_entries = combo['measurements']
+        try:
+            combo = data['data']
+            meas_entries = combo['measurements']
+        except KeyError as exc:
+            raise KeyError('Data configuration must define "measurements"') from exc
         labels, central, stat_err = [], [], []
         for m in meas_entries:
             try:
@@ -106,31 +107,31 @@ class GVMCombination:
         else:
             raise KeyError('Measurement stat errors or covariance required')
 
-        syst_entries = data.get('syst', data.get('systematics', []))
+        try:
+            syst_entries = data['syst']
+        except KeyError as exc:
+            raise KeyError('Configuration must define "syst" section') from exc
 
         meas_map = {m: i for i, m in enumerate(labels)}
         syst_dict = {}
         for item in syst_entries:
             name = item['name']
 
-            shift = item.get('shift', {})
-            if 'value' in shift:
+            try:
+                shift = item['shift']
                 shift_vals = shift['value']
-            elif 'shifts' in item:
-                shift_vals = item['shifts']
-            else:
+            except KeyError as exc:
                 raise KeyError(
-                    f'Systematic "{name}" must define shift values'
-                )
+                    f'Systematic "{name}" must define "shift.value"'
+                ) from exc
             shifts = [float(x) for x in shift_vals]
 
-            # ``correlation`` may be specified directly or via the legacy
-            # ``corr_file`` field.  The ``shift`` block is preferred.
-            corr_spec = shift.get('correlation', item.get('correlation'))
-            if corr_spec is None and 'corr_file' in item:
-                corr_spec = item['corr_file']
-            if corr_spec is None:
-                corr_spec = 'diagonal'
+            try:
+                corr_spec = shift['correlation']
+            except KeyError as exc:
+                raise KeyError(
+                    f'Systematic "{name}" must define "shift.correlation"'
+                ) from exc
             if corr_spec == 'diagonal':
                 corr = np.eye(n_meas)
             elif corr_spec == 'ones':
@@ -158,15 +159,14 @@ class GVMCombination:
                                 path_corr = os.path.join(corr_dir, path_corr)
                 corr = np.loadtxt(path_corr, dtype=float)
 
-            # ``error-on-error`` replaces the legacy ``epsilon`` field.  If the
-            # new block is missing, fall back to ``epsilon`` when present.
-            eoe = item.get('error-on-error')
-            if eoe is None:
-                eps_val = float(item.get('epsilon', 0.0))
-                eps_type = 'dependent'
-            else:
-                eps_val = float(eoe.get('value', 0.0))
-                eps_type = eoe.get('type', 'dependent')
+            try:
+                eoe = item['error-on-error']
+                eps_val = float(eoe['value'])
+                eps_type = eoe['type']
+            except KeyError as exc:
+                raise KeyError(
+                    f'Systematic "{name}" must define "error-on-error.value" and "error-on-error.type"'
+                ) from exc
             if eps_type not in ('dependent', 'independent'):
                 raise ValueError(
                     f'Systematic "{name}" has unrecognised error-on-error type "{eps_type}"'
@@ -519,20 +519,14 @@ class GVMCombination:
             if sname not in self.syst:
                 continue
 
-            shift = entry.get('shift', {})
-            if 'value' in shift:
-                for m, val in shift['value'].items():
-                    self.syst[sname][idx[m]] = float(val)
-            elif 'values' in entry:
-                for m, val in entry['values'].items():
-                    self.syst[sname][idx[m]] = float(val)
-
-            if 'correlation' in shift:
-                mat = np.asarray(shift['correlation'], dtype=float)
-                self.corr[sname] = mat
-            elif 'corr' in entry:
-                mat = np.asarray(entry['corr'], dtype=float)
-                self.corr[sname] = mat
+            shift = entry.get('shift')
+            if shift:
+                if 'value' in shift:
+                    for m, val in shift['value'].items():
+                        self.syst[sname][idx[m]] = float(val)
+                if 'correlation' in shift:
+                    mat = np.asarray(shift['correlation'], dtype=float)
+                    self.corr[sname] = mat
 
             if 'error-on-error' in entry:
                 eoe = entry['error-on-error']
