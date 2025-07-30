@@ -96,11 +96,7 @@ class GVMCombination:
         if stat_cov_path:
             stat_cov_path = stat_cov_path.replace('${global.corr_dir}', corr_dir)
             if not os.path.isabs(stat_cov_path):
-                cand = os.path.join(base_dir, stat_cov_path)
-                if os.path.exists(cand):
-                    stat_cov_path = cand
-                elif corr_dir:
-                    stat_cov_path = os.path.join(corr_dir, stat_cov_path)
+                stat_cov_path = os.path.join(corr_dir, stat_cov_path)
             V_stat = np.loadtxt(stat_cov_path, dtype=float)
         elif stat_err:
             V_stat = np.diag(np.array(stat_err, dtype=float) ** 2)
