@@ -135,24 +135,7 @@ class GVMCombination:
             else:
                 path_corr = corr_spec.replace('${global.corr_dir}', corr_dir)
                 if not os.path.isabs(path_corr):
-                    # First try relative to the configuration file directory
-                    cand = os.path.join(base_dir, path_corr)
-                    if os.path.exists(cand):
-                        path_corr = cand
-                    elif corr_dir:
-                        # ``corr_dir`` might be relative either to the
-                        # configuration directory or its parent.  Try both.
-                        cand = os.path.join(base_dir, corr_dir, path_corr)
-                        if os.path.exists(cand):
-                            path_corr = cand
-                        else:
-                            cand = os.path.join(os.path.dirname(base_dir), corr_dir, path_corr)
-                            if os.path.exists(cand):
-                                path_corr = cand
-                            else:
-                                # Fallback: treat ``corr_dir`` as absolute or
-                                # working-directory relative.
-                                path_corr = os.path.join(corr_dir, path_corr)
+                    path_corr = os.path.join(corr_dir, path_corr)
                 corr = np.loadtxt(path_corr, dtype=float)
 
             try:
