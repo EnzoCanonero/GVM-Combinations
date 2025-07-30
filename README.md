@@ -56,8 +56,38 @@ sections:
   statistical uncertainties.  Statistical errors may be given explicitly or a
   ``stat_cov_path`` can provide a covariance matrix.  In either case the
   toolkit constructs the full covariance matrix.
-* ``syst`` – list of systematics with their shift vectors, associated
-  correlation matrix file and optional ``epsilon`` error-on-error value.
+* ``syst`` – list of systematics. Each has a ``shift`` block with ``value``
+  listing the shifts for each measurement and ``correlation`` specifying
+  ``diagonal``, ``ones`` or a path to a correlation matrix. An
+  ``error-on-error`` block specifies the ``value`` and ``type``
+  (``dependent`` or ``independent``).
+A minimal configuration:
+
+```yaml
+global:
+  name: Example
+  n_meas: 2
+  n_syst: 1
+
+data:
+  measurements:
+    - label: A
+      central: 1.0
+      stat_error: 0.1
+    - label: B
+      central: 1.2
+      stat_error: 0.1
+
+syst:
+  - name: scale
+    shift:
+      value: [0.05, -0.02]
+      correlation: diagonal
+    error-on-error:
+      value: 0.02
+      type: dependent
+```
+
 
 See ``input_files/LHC_mass_combination.yaml`` for a complete example using
 statistical errors.  ``input_files/LHC_mass_combination_cov.yaml`` shows the
