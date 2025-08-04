@@ -2,7 +2,7 @@ global:
   name: full_corr
   n_meas: 2
   n_syst: 1
-  corr_dir: tutorials/toy/input_files/correlations
+  corr_dir: input_files/correlations
 
 data:
   measurements:
@@ -15,7 +15,9 @@ data:
 
 syst:
   - name: sys1
-    shifts: [0.5, 1.0]
-    type:
-      dependent: ones
-    epsilon: 0.0
+    shift:
+      value: [0.5, 1.0]
+      correlation: ones
+    error-on-error:
+      value: 0.0
+      type: dependent
