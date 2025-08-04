@@ -276,22 +276,18 @@ class GVMCombination:
         Gamma_factors = {}
         for src, sigma in self.syst.items():
             if src in self.uncertain_systematics:
-                if self.eoe_type.get(src, 'dependent') == 'dependent':
-                    rho = self.corr[src]
-                    red, Gamma = self._reduce_corr(rho, src_name=src)
-                    for i in range(Gamma.shape[0]):
-                        for j in range(Gamma.shape[1]):
-                            if Gamma[i, j] != 0:
-                                Gamma[i, j] *= sigma[i]
-                    zero_cols = np.all(Gamma == 0, axis=0)
-                    Gamma = Gamma[:, ~zero_cols]
-                    if np.any(zero_cols):
-                        red = red[~zero_cols][:, ~zero_cols]
-                    C_inv[src] = np.linalg.inv(red)
-                    Gamma_factors[src] = Gamma
-                else:
-                    Gamma_factors[src] = np.diag(sigma)
-                    C_inv[src] = np.eye(n)
+                rho = self.corr[src]
+                red, Gamma = self._reduce_corr(rho, src_name=src)
+                for i in range(Gamma.shape[0]):
+                    for j in range(Gamma.shape[1]):
+                        if Gamma[i, j] != 0:
+                            Gamma[i, j] *= sigma[i]
+                zero_cols = np.all(Gamma == 0, axis=0)
+                Gamma = Gamma[:, ~zero_cols]
+                if np.any(zero_cols):
+                    red = red[~zero_cols][:, ~zero_cols]
+                C_inv[src] = np.linalg.inv(red)
+                Gamma_factors[src] = Gamma
         return V_inv, C_inv, Gamma_factors
 
     # ------------------------------------------------------------------
@@ -561,7 +557,12 @@ class GVMCombination:
                 idx_p = idxs[j]
                 GsVinGp = Gs.T @ V_G[kp]
                 if ks == kp:
-                    F[np.ix_(idx_s, idx_p)] = GsVinGp + (1.0 / S_s) * Cinv_s
+                    if self.eoe_type.get(kp, 'dependent') == 'dependent':
+                        F[np.ix_(idx_s, idx_p)] = GsVinGp + (1.0 / S_s) * Cinv_s
+                    else:
+                        F[np.ix_(idx_s, idx_p)] = (
+                            GsVinGp + Cinv_s * (1.0 / S_s)[:, None]
+                        )
                 else:
                     F[np.ix_(idx_s, idx_p)] = GsVinGp
         return F
