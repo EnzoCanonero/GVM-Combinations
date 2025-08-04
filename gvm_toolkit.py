@@ -138,14 +138,9 @@ class GVMCombination:
                     path_corr = os.path.join(corr_dir, path_corr)
                 corr = np.loadtxt(path_corr, dtype=float)
 
-            try:
-                eoe = item['error-on-error']
-                eps_val = float(eoe['value'])
-                eps_type = eoe['type']
-            except KeyError as exc:
-                raise KeyError(
-                    f'Systematic "{name}" must define "error-on-error.value" and "error-on-error.type"'
-                ) from exc
+            eoe = item.get('error-on-error', {})
+            eps_val = float(eoe.get('value', 0.0))
+            eps_type = eoe.get('type', 'dependent')
             if eps_type not in ('dependent', 'independent'):
                 raise ValueError(
                     f'Systematic "{name}" has unrecognised error-on-error type "{eps_type}"'
