@@ -37,7 +37,7 @@ global:
   name: decorrelated
   n_meas: 2
   n_syst: 1
-  corr_dir: tutorials/toy/input_files/correlations
+  corr_dir: input_files/correlations
 
 data:
   measurements:
@@ -46,13 +46,16 @@ data:
       stat_error: 1.0
     - label: m2
       central: -1.5
-      stat_error: 1.
+      stat_error: 1.0
 
 syst:
   - name: sys1
-    shifts: [0.5, 1.0]
-    type: independent
-    epsilon: 0.0
+    shift:
+      value: [0.5, 1.0]
+      correlation: diagonal
+    error-on-error:
+      value: 0.0
+      type: independent
 ```
 
 
@@ -87,7 +90,7 @@ We now compare three different correlation matrices for the systematic uncertain
      name: diag_corr
      n_meas: 2
      n_syst: 1
-     corr_dir: tutorials/toy/input_files/correlations
+   corr_dir: input_files/correlations
 
    data:
      measurements:
@@ -100,10 +103,12 @@ We now compare three different correlation matrices for the systematic uncertain
 
    syst:
      - name: sys1
-       shifts: [0.5, 1.0]
-       type:
-         dependent: diagonal
-       epsilon: 0.0
+       shift:
+         value: [0.5, 1.0]
+         correlation: diagonal
+       error-on-error:
+         value: 0.0
+         type: dependent
    ```
 
    The diagonal option corresponds to:
@@ -120,7 +125,7 @@ We now compare three different correlation matrices for the systematic uncertain
      name: hybrid_corr
      n_meas: 2
      n_syst: 1
-     corr_dir: tutorials/toy/input_files/correlations
+   corr_dir: input_files/correlations
 
    data:
      measurements:
@@ -133,10 +138,12 @@ We now compare three different correlation matrices for the systematic uncertain
 
    syst:
      - name: sys1
-       shifts: [0.5, 1.0]
-       type:
-         dependent: hybrid_corr.txt
-       epsilon: 0.0
+       shift:
+         value: [0.5, 1.0]
+         correlation: hybrid_corr.txt
+       error-on-error:
+         value: 0.0
+         type: dependent
    ```
 
    `hybrid_corr.txt`
@@ -153,7 +160,7 @@ We now compare three different correlation matrices for the systematic uncertain
      name: full_corr
      n_meas: 2
      n_syst: 1
-     corr_dir: tutorials/toy/input_files/correlations
+   corr_dir: input_files/correlations
 
    data:
      measurements:
@@ -166,10 +173,12 @@ We now compare three different correlation matrices for the systematic uncertain
 
    syst:
      - name: sys1
-       shifts: [0.5, 1.0]
-       type:
-         dependent: ones
-       epsilon: 0.0
+       shift:
+         value: [0.5, 1.0]
+         correlation: ones
+       error-on-error:
+         value: 0.0
+         type: dependent
    ```
 
    The ones option corresponds to:
@@ -235,7 +244,7 @@ global:
   name: stat_cov
   n_meas: 2
   n_syst: 1
-  corr_dir: tutorials/toy/input_files/correlations
+  corr_dir: input_files/correlations
 
 data:
   stat_cov_path: stat_cov.txt
@@ -247,10 +256,12 @@ data:
 
 syst:
   - name: sys1
-    shifts: [0.5, 1.0]
-    type:
-      dependent: ones
-    epsilon: 0.0
+    shift:
+      value: [0.5, 1.0]
+      correlation: ones
+    error-on-error:
+      value: 0.0
+      type: dependent
 ```
 
 `stat_cov.txt`
@@ -294,11 +305,11 @@ info = comb.input_data()
 
 # change measurement and systematic values
 info['data']['measurements']['m1']['central'] = 2.0
-info['syst']['sys1']['values']['m1'] = 0.5
+info['syst']['sys1']['shift']['value']['m1'] = 0.5
 
 # update the systematic to be dependent with a new correlation matrix
-info['syst']['sys1']['type'] = 'dependent'
-info['syst']['sys1']['corr'] = np.array([[1.0, 0.3], [0.3, 1.0]])
+info['syst']['sys1']['error-on-error']['type'] = 'dependent'
+info['syst']['sys1']['shift']['correlation'] = np.array([[1.0, 0.3], [0.3, 1.0]])
 
 # apply modifications and refit
 comb.update_data(info)
@@ -346,7 +357,7 @@ sign = []
 
 for eps in eps_grid:
     base_info = deepcopy(base_info)
-    base_info['syst']['sys1']['epsilon'] = float(eps)
+    base_info['syst']['sys1']['error-on-error']['value'] = float(eps)
     comb.update_data(base_info)
     cv.append(comb.fit_results['mu'])
     lower_bound.append(comb.confidence_interval()[0])
@@ -448,7 +459,7 @@ sign = []
 
 for eps in eps_grid:
     base_info = deepcopy(base_info)
-    base_info['syst']['sys1']['epsilon'] = float(eps)
+    base_info['syst']['sys1']['error-on-error']['value'] = float(eps)
     comb.update_data(base_info)
     cv.append(comb.fit_results['mu'])
     lower_bound.append(comb.confidence_interval()[0])
@@ -552,7 +563,7 @@ sign = []
 
 for eps in eps_grid:
     base_info = deepcopy(base_info)
-    base_info['syst']['sys1']['epsilon'] = float(eps)
+    base_info['syst']['sys1']['error-on-error']['value'] = float(eps)
     comb.update_data(base_info)
     cv.append(comb.fit_results['mu'])
     lower_bound.append(comb.confidence_interval()[0])
@@ -650,7 +661,7 @@ sign = []
 
 for eps in eps_grid:
     base_info = deepcopy(base_info)
-    base_info['syst']['sys1']['epsilon'] = float(eps)
+    base_info['syst']['sys1']['error-on-error']['value'] = float(eps)
     comb.update_data(base_info)
     cv.append(comb.fit_results['mu'])
     lower_bound.append(comb.confidence_interval()[0])
@@ -724,7 +735,7 @@ sign = []
 
 for eps in eps_grid:
     base_info = deepcopy(base_info)
-    base_info['syst']['sys1']['epsilon'] = float(eps)
+    base_info['syst']['sys1']['error-on-error']['value'] = float(eps)
     comb.update_data(base_info)
     cv.append(comb.fit_results['mu'])  
     lower_bound.append(comb.confidence_interval()[0])
