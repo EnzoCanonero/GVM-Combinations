@@ -58,9 +58,10 @@ sections:
   toolkit constructs the full covariance matrix.
 * ``syst`` – list of systematics. Each has a ``shift`` block with ``value``
   listing the shifts for each measurement and ``correlation`` specifying
-  ``diagonal``, ``ones`` or a path to a correlation matrix. An
+  ``diagonal``, ``ones`` or a path to a correlation matrix. An optional
   ``error-on-error`` block specifies the ``value`` and ``type``
-  (``dependent`` or ``independent``).
+  (``dependent`` or ``independent``). If omitted, the value defaults to ``0``
+  and the type to ``dependent``.
 A minimal configuration:
 
 ```yaml
