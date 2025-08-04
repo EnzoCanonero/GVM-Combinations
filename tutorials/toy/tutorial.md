@@ -33,50 +33,158 @@ We now compare three different correlation matrices for the systematic uncertain
 
 In the configuration file, errors-on-error are explicitly set to zero, and their type is set to *dependent*. In principle, one could omit both the error-on-error value and its type, since the defaults are zero and *dependent*, respectively. Note that the systematic type is irrelevant when the error-on-error is zero.
 
-The following cells build a `GVMCombination` for each correlation scenario. After running the fit we print the estimated mean (`mu_hat`), the 68% confidence interval and the goodness-of-fit (chi-square) value.
+### Diagonal
+```python
+with open('input_files/diag_corr.yaml') as f:
+    print(f.read())
+```
 
+    global:
+      name: diag_corr
+      n_meas: 2
+      n_syst: 1
+      corr_dir: input_files/correlations
+
+    data:
+      measurements:
+        - label: m1
+          central: 1.5
+          stat_error: 1.0
+        - label: m2
+          central: -1.5
+          stat_error: 1.0
+
+    syst:
+      - name: sys1
+        shift:
+          value: [0.5, 1.0]
+          correlation: diagonal
+        error-on-error:
+          value: 0.0
+          type: dependent
 
 ```python
 comb = GVMCombination('input_files/diag_corr.yaml')
+comb.input_data()['syst']['sys1']['shift']['correlation']
+```
+
+    [[1. 0.]
+     [0. 1.]]
+
+```python
 mu_hat = comb.fit_results['mu']
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
 p_value = 1 - chi2.cdf(chi_2, df=1)
 significance = norm.ppf(1 - p_value/2)
-print('Diagonal')
 print(f'mu_hat = {mu_hat:.4f}, CI = ({ci_low:.4f}, {ci_high:.4f})')
 print(f'χ² = {chi_2:.3f}, significance = {significance} \n')
+```
 
+    mu_hat = 0.3462, CI = (-0.5332, 1.2230)
+    χ² = 2.769, significance = 1.6641005886756863
+
+### Hybrid correlation
+
+```python
+with open('input_files/hybrid_corr.yaml') as f:
+    print(f.read())
+```
+
+    global:
+      name: hybrid_corr
+      n_meas: 2
+      n_syst: 1
+      corr_dir: input_files/correlations
+
+    data:
+      measurements:
+        - label: m1
+          central: 1.5
+          stat_error: 1.0
+        - label: m2
+          central: -1.5
+          stat_error: 1.0
+
+    syst:
+      - name: sys1
+        shift:
+          value: [0.5, 1.0]
+          correlation: hybrid_corr.txt
+        error-on-error:
+          value: 0.0
+          type: dependent
+
+```python
 comb = GVMCombination('input_files/hybrid_corr.yaml')
+comb.input_data()['syst']['sys1']['shift']['correlation']
+```
+
+    [[1.   0.75]
+     [0.75 1.  ]]
+
+```python
 mu_hat = comb.fit_results['mu']
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
 p_value = 1 - chi2.cdf(chi_2, df=1)
 significance = norm.ppf(1 - p_value/2)
-print('Hybrid correlation')
 print(f'mu_hat = {mu_hat:.4f}, CI = ({ci_low:.4f}, {ci_high:.4f})')
 print(f'χ² = {chi_2:.3f}, significance = {significance} \n')
+```
 
+    mu_hat = 0.4500, CI = (-0.5288, 1.4212)
+    χ² = 3.600, significance = 1.8973665961010266
+
+### Fully correlated
+
+```python
+with open('input_files/full_corr.yaml') as f:
+    print(f.read())
+```
+
+    global:
+      name: full_corr
+      n_meas: 2
+      n_syst: 1
+      corr_dir: input_files/correlations
+
+    data:
+      measurements:
+        - label: m1
+          central: 1.5
+          stat_error: 1.0
+        - label: m2
+          central: -1.5
+          stat_error: 1.0
+
+    syst:
+      - name: sys1
+        shift:
+          value: [0.5, 1.0]
+          correlation: ones
+        error-on-error:
+          value: 0.0
+          type: dependent
+
+```python
 comb = GVMCombination('input_files/full_corr.yaml')
+comb.input_data()['syst']['sys1']['shift']['correlation']
+```
+
+    [[1. 1.]
+     [1. 1.]]
+
+```python
 mu_hat = comb.fit_results['mu']
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
 p_value = 1 - chi2.cdf(chi_2, df=1)
 significance = norm.ppf(1 - p_value/2)
-print('Fully correlated')
 print(f'mu_hat = {mu_hat:.4f}, CI = ({ci_low:.4f}, {ci_high:.4f})')
 print(f'χ² = {chi_2:.3f}, significance = {significance}')
 ```
 
-    Diagonal
-    mu_hat = 0.3462, CI = (-0.5332, 1.2230)
-    χ² = 2.769, significance = 1.6641005886756863 
-    
-    Hybrid correlation
-    mu_hat = 0.4500, CI = (-0.5288, 1.4212)
-    χ² = 3.600, significance = 1.8973665961010266 
-    
-    Fully correlated
     mu_hat = 0.5000, CI = (-0.5000, 1.5003)
     χ² = 4.000, significance = 1.999999999999998
 
@@ -88,7 +196,42 @@ Unlike systematic uncertainties — which can be described through correlation m
 
 
 ```python
+with open('input_files/stat_cov.yaml') as f:
+    print(f.read())
+```
+
+    global:
+      name: stat_cov
+      n_meas: 2
+      n_syst: 1
+      corr_dir: input_files/correlations
+
+    data:
+      stat_cov_path: stat_cov.txt
+      measurements:
+        - label: m1
+          central: 1.5
+        - label: m2
+          central: -1.5
+
+    syst:
+      - name: sys1
+        shift:
+          value: [0.5, 1.0]
+          correlation: ones
+        error-on-error:
+          value: 0.0
+          type: dependent
+
+```python
 comb = GVMCombination('input_files/stat_cov.yaml')
+comb.input_data()['data']['V_stat']
+```
+
+    [[2. 1.]
+     [1. 2.]]
+
+```python
 mu_hat = comb.fit_results['mu']
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
@@ -96,12 +239,10 @@ p_value = 1 - chi2.cdf(chi_2, df=1)
 significance = norm.ppf(1 - p_value/2)
 print(f'mu_hat = {mu_hat:.4f}, CI = ({ci_low:.4f}, {ci_high:.4f})')
 print(f'χ² = {chi_2:.3f}, significance = {significance}')
-
 ```
 
     mu_hat = 0.5000, CI = (-0.9187, 1.9138)
     χ² = 4.000, significance = 1.999999999999998
-
 
 ## 3. Tip: modifying the combination
 You can obtain the current input with `input_data()` and modify the returned dictionary. 
@@ -110,24 +251,97 @@ After editing, pass it to `update_data()` to apply the changes before refitting.
 
 
 ```python
+with open('input_files/diag_corr.yaml') as f:
+    print(f.read())
+```
+
+    global:
+      name: diag_corr
+      n_meas: 2
+      n_syst: 1
+      corr_dir: input_files/correlations
+
+    data:
+      measurements:
+        - label: m1
+          central: 1.5
+          stat_error: 1.0
+        - label: m2
+          central: -1.5
+          stat_error: 1.0
+
+    syst:
+      - name: sys1
+        shift:
+          value: [0.5, 1.0]
+          correlation: diagonal
+        error-on-error:
+          value: 0.0
+          type: dependent
+
+```python
 comb = GVMCombination('input_files/diag_corr.yaml')
-
-# extract current configuration
 info = comb.input_data()
-
-# change measurement and systematic values
 info['data']['measurements']['m1']['central'] = 2.0
 info['syst']['sys1']['shift']['value']['m1'] = 0.5
-
-# update the systematic to be dependent with a new correlation matrix
 info['syst']['sys1']['error-on-error']['type'] = 'dependent'
 info['syst']['sys1']['shift']['correlation'] = np.array([[1.0, 0.3], [0.3, 1.0]])
 
-# apply modifications and refit
+import yaml, numpy as np
+def _clean(obj):
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, dict):
+        return {k: _clean(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_clean(x) for x in obj]
+    return obj
+print(yaml.dump(_clean(info), sort_keys=False))
+```
+
+    global:
+      name: diag_corr
+      n_meas: 2
+      n_syst: 1
+    data:
+      measurements:
+        m1:
+          central: 2.0
+          stat: 1.0
+        m2:
+          central: -1.5
+          stat: 1.0
+      V_stat:
+      - - 1.0
+        - 0.0
+      - - 0.0
+        - 1.0
+    syst:
+      sys1:
+        shift:
+          value:
+            m1: 0.5
+            m2: 1.0
+          correlation:
+          - - 1.0
+            - 0.3
+          - - 0.3
+            - 1.0
+        error-on-error:
+          value: 0.0
+          type: dependent
+
+```python
+info['syst']['sys1']['shift']['correlation']
+```
+
+    [[1.  0.3]
+     [0.3 1. ]]
+
+```python
 comb.update_data(info)
 comb.fit_results = comb.minimize()
 print(f"updated mu_hat={comb.fit_results['mu']:.4f}")
-
 ```
 
     updated mu_hat=0.6949
