@@ -64,14 +64,13 @@ with open('input_files/diag_corr.yaml') as f:
           type: dependent
 
 ```python
-comb = GVMCombination('input_files/diag_corr.yaml')
-comb.input_data()['syst']['sys1']['shift']['correlation']
+# 'diagonal' corresponds to this correlation file
+with open('input_files/correlations/diag_corr.txt') as f:
+    print(f.read())
 ```
 
-    [[1. 0.]
-     [0. 1.]]
-
 ```python
+comb = GVMCombination('input_files/diag_corr.yaml')
 mu_hat = comb.fit_results['mu']
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
@@ -116,14 +115,12 @@ with open('input_files/hybrid_corr.yaml') as f:
           type: dependent
 
 ```python
-comb = GVMCombination('input_files/hybrid_corr.yaml')
-comb.input_data()['syst']['sys1']['shift']['correlation']
+with open('input_files/correlations/hybrid_corr.txt') as f:
+    print(f.read())
 ```
 
-    [[1.   0.75]
-     [0.75 1.  ]]
-
 ```python
+comb = GVMCombination('input_files/hybrid_corr.yaml')
 mu_hat = comb.fit_results['mu']
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
@@ -168,14 +165,13 @@ with open('input_files/full_corr.yaml') as f:
           type: dependent
 
 ```python
-comb = GVMCombination('input_files/full_corr.yaml')
-comb.input_data()['syst']['sys1']['shift']['correlation']
+# 'ones' corresponds to this correlation file
+with open('input_files/correlations/full_corr.txt') as f:
+    print(f.read())
 ```
 
-    [[1. 1.]
-     [1. 1.]]
-
 ```python
+comb = GVMCombination('input_files/full_corr.yaml')
 mu_hat = comb.fit_results['mu']
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
@@ -224,14 +220,18 @@ with open('input_files/stat_cov.yaml') as f:
           type: dependent
 
 ```python
-comb = GVMCombination('input_files/stat_cov.yaml')
-comb.input_data()['data']['V_stat']
+with open('input_files/correlations/stat_cov.txt') as f:
+    print(f.read())
 ```
 
-    [[2. 1.]
-     [1. 2.]]
+```python
+# 'ones' corresponds to this correlation file
+with open('input_files/correlations/full_corr.txt') as f:
+    print(f.read())
+```
 
 ```python
+comb = GVMCombination('input_files/stat_cov.yaml')
 mu_hat = comb.fit_results['mu']
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
