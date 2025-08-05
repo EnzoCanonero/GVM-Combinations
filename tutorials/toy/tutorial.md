@@ -244,38 +244,6 @@ info['syst']['sys1']['shift']['value']['m1'] = 0.5
 info['syst']['sys1']['error-on-error']['type'] = 'dependent'
 info['syst']['sys1']['shift']['correlation'] = np.array([[1.0, 0.3], [0.3, 1.0]])```
 
-    global:
-      name: diag_corr
-      n_meas: 2
-      n_syst: 1
-    data:
-      measurements:
-        m1:
-          central: 2.0
-          stat: 1.0
-        m2:
-          central: -1.5
-          stat: 1.0
-      V_stat:
-      - - 1.0
-        - 0.0
-      - - 0.0
-        - 1.0
-    syst:
-      sys1:
-        shift:
-          value:
-            m1: 0.5
-            m2: 1.0
-          correlation:
-          - - 1.0
-            - 0.3
-          - - 0.3
-            - 1.0
-        error-on-error:
-          value: 0.0
-          type: dependent
-
 ```python
 info['syst']['sys1']['shift']['correlation']
 ```
