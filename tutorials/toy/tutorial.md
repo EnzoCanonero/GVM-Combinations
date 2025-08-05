@@ -63,10 +63,11 @@ with open('input_files/diag_corr.yaml') as f:
           value: 0.0
           type: dependent
 
-```python
-# 'diagonal' corresponds to this correlation file
-with open('input_files/correlations/diag_corr.txt') as f:
-    print(f.read())
+The `diagonal` option corresponds to:
+
+```
+1 0
+0 1
 ```
 
 ```python
@@ -114,9 +115,11 @@ with open('input_files/hybrid_corr.yaml') as f:
           value: 0.0
           type: dependent
 
-```python
-with open('input_files/correlations/hybrid_corr.txt') as f:
-    print(f.read())
+`hybrid_corr.txt`
+
+```
+1 0.75
+0.75 1
 ```
 
 ```python
@@ -164,10 +167,11 @@ with open('input_files/full_corr.yaml') as f:
           value: 0.0
           type: dependent
 
-```python
-# 'ones' corresponds to this correlation file
-with open('input_files/correlations/full_corr.txt') as f:
-    print(f.read())
+The `ones` option corresponds to:
+
+```
+1 1
+1 1
 ```
 
 ```python
@@ -219,15 +223,18 @@ with open('input_files/stat_cov.yaml') as f:
           value: 0.0
           type: dependent
 
-```python
-with open('input_files/correlations/stat_cov.txt') as f:
-    print(f.read())
+`stat_cov.txt`
+
+```
+2 1
+1 2
 ```
 
-```python
-# 'ones' corresponds to this correlation file
-with open('input_files/correlations/full_corr.txt') as f:
-    print(f.read())
+The `ones` option corresponds to:
+
+```
+1 1
+1 1
 ```
 
 ```python
