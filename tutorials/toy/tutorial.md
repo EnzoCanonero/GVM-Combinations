@@ -34,10 +34,6 @@ We now compare three different correlation matrices for the systematic uncertain
 In the configuration file, errors-on-error are explicitly set to zero, and their type is set to *dependent*. In principle, one could omit both the error-on-error value and its type, since the defaults are zero and *dependent*, respectively. Note that the systematic type is irrelevant when the error-on-error is zero.
 
 ### Diagonal
-```python
-with open('input_files/diag_corr.yaml') as f:
-    print(f.read())
-```
 
     global:
       name: diag_corr
@@ -86,10 +82,6 @@ print(f'χ² = {chi_2:.3f}, significance = {significance} \n')
 
 ### Hybrid correlation
 
-```python
-with open('input_files/hybrid_corr.yaml') as f:
-    print(f.read())
-```
 
     global:
       name: hybrid_corr
@@ -137,11 +129,6 @@ print(f'χ² = {chi_2:.3f}, significance = {significance} \n')
     χ² = 3.600, significance = 1.8973665961010266
 
 ### Fully correlated
-
-```python
-with open('input_files/full_corr.yaml') as f:
-    print(f.read())
-```
 
     global:
       name: full_corr
@@ -193,12 +180,6 @@ print(f'χ² = {chi_2:.3f}, significance = {significance}')
 The same systematic is fully correlated as above, but this time the statistical uncertainties are specified via a covariance matrix that includes non-zero off-diagonal terms.
 
 Unlike systematic uncertainties — which can be described through correlation matrices — statistical uncertainties must be provided directly as a **covariance matrix**.
-
-
-```python
-with open('input_files/stat_cov.yaml') as f:
-    print(f.read())
-```
 
     global:
       name: stat_cov
@@ -255,56 +236,13 @@ print(f'χ² = {chi_2:.3f}, significance = {significance}')
 You can obtain the current input with `input_data()` and modify the returned dictionary. 
 After editing, pass it to `update_data()` to apply the changes before refitting.
 
-
-
-```python
-with open('input_files/diag_corr.yaml') as f:
-    print(f.read())
-```
-
-    global:
-      name: diag_corr
-      n_meas: 2
-      n_syst: 1
-      corr_dir: input_files/correlations
-
-    data:
-      measurements:
-        - label: m1
-          central: 1.5
-          stat_error: 1.0
-        - label: m2
-          central: -1.5
-          stat_error: 1.0
-
-    syst:
-      - name: sys1
-        shift:
-          value: [0.5, 1.0]
-          correlation: diagonal
-        error-on-error:
-          value: 0.0
-          type: dependent
-
 ```python
 comb = GVMCombination('input_files/diag_corr.yaml')
 info = comb.input_data()
 info['data']['measurements']['m1']['central'] = 2.0
 info['syst']['sys1']['shift']['value']['m1'] = 0.5
 info['syst']['sys1']['error-on-error']['type'] = 'dependent'
-info['syst']['sys1']['shift']['correlation'] = np.array([[1.0, 0.3], [0.3, 1.0]])
-
-import yaml, numpy as np
-def _clean(obj):
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, dict):
-        return {k: _clean(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_clean(x) for x in obj]
-    return obj
-print(yaml.dump(_clean(info), sort_keys=False))
-```
+info['syst']['sys1']['shift']['correlation'] = np.array([[1.0, 0.3], [0.3, 1.0]])```
 
     global:
       name: diag_corr
