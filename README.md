@@ -60,8 +60,10 @@ sections:
   listing the shifts for each measurement and ``correlation`` specifying
   ``diagonal``, ``ones`` or a path to a correlation matrix. An optional
   ``error-on-error`` block specifies the ``value`` and ``type``
-  (``dependent`` or ``independent``). If omitted, the value defaults to ``0``
-  and the type to ``dependent``.
+  (``dependent`` or ``independent``). For ``independent`` systematics the
+  ``value`` may be either a list giving one epsilon per measurement or a
+  single number which is applied to all measurements. If omitted, the value
+  defaults to ``0`` and the type to ``dependent``.
 A minimal configuration:
 
 ```yaml

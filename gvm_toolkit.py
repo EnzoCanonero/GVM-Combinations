@@ -35,10 +35,17 @@ class GVMCombination:
             for s in cfg['syst']
         }
 
-        self.uncertain_systematics = {
-            s: cfg['syst'][s]['error-on-error']['value']
-            for s in cfg['syst'] if cfg['syst'][s]['error-on-error']['value'] != 0.0
-        }
+        self.uncertain_systematics = {}
+        for s in cfg['syst']:
+            val = cfg['syst'][s]['error-on-error']['value']
+            if self.eoe_type.get(s, 'dependent') == 'independent':
+                eps = np.asarray(val, dtype=float)
+                if np.any(eps != 0.0):
+                    self.uncertain_systematics[s] = eps
+            else:
+                eps = float(val)
+                if eps != 0.0:
+                    self.uncertain_systematics[s] = eps
 
         self._validate_combination()
 
@@ -139,12 +146,25 @@ class GVMCombination:
                 corr = np.loadtxt(path_corr, dtype=float)
 
             eoe = item.get('error-on-error', {})
-            eps_val = float(eoe.get('value', 0.0))
+            eps_val = eoe.get('value', 0.0)
             eps_type = eoe.get('type', 'dependent')
             if eps_type not in ('dependent', 'independent'):
                 raise ValueError(
                     f'Systematic "{name}" has unrecognised error-on-error type "{eps_type}"'
                 )
+            if eps_type == 'independent':
+                if isinstance(eps_val, (list, tuple, np.ndarray)):
+                    eps_list = [float(x) for x in eps_val]
+                else:
+                    eps_list = [float(eps_val)]
+                if len(eps_list) == 1:
+                    eps_list *= n_meas
+                elif len(eps_list) != n_meas:
+                    raise ValueError(
+                        f'Systematic "{name}" independent error-on-error must have {n_meas} values')
+                eps_val = eps_list
+            else:
+                eps_val = float(eps_val)
 
             val_map = {lab: shifts[meas_map[lab]] for lab in labels}
             syst_dict[name] = {
@@ -211,6 +231,13 @@ class GVMCombination:
                 if not np.allclose(mat, np.eye(self.n_meas)):
                     raise ValueError(
                         f'Systematic {name} has independent error-on-error but correlation is not diagonal')
+
+        for name, typ in self.eoe_type.items():
+            if typ == 'independent':
+                eps = np.asarray(self.uncertain_systematics.get(name, np.zeros(self.n_meas)))
+                if eps.shape[0] != self.n_meas:
+                    raise ValueError(
+                        f'Systematic {name} has independent error-on-error but epsilon has {eps.shape[0]} values')
 
     # ------------------------------------------------------------------
     def _reduce_corr(self, rho, src_name=None):
@@ -298,7 +325,7 @@ class GVMCombination:
         chi2_u = 0.0
         keys = list(self.Gamma.keys())
         for i, k in enumerate(keys):
-            theta = thetas[i]
+            theta = np.asarray(thetas[i])
             eps = self.uncertain_systematics[k]
             if self.eoe_type.get(k, 'dependent') == 'dependent':
                 Cinv = self.C_inv[k]
@@ -308,10 +335,12 @@ class GVMCombination:
                 else:
                     chi2_u += theta @ Cinv @ theta
             else:
-                if eps > 0:
-                    chi2_u += np.sum((1 + 1.0 / (2.0 * eps ** 2)) * np.log(1. + 2. * eps ** 2 * theta ** 2))
-                else:
-                    chi2_u += theta @ theta
+                eps = np.asarray(eps)
+                mask = eps > 0
+                if np.any(mask):
+                    chi2_u += np.sum((1 + 1.0 / (2.0 * eps[mask] ** 2)) * np.log(1. + 2. * eps[mask] ** 2 * theta[mask] ** 2))
+                if np.any(~mask):
+                    chi2_u += np.sum(theta[~mask] ** 2)
         return 0.5 * (chi2_y + chi2_u)
 
     # ------------------------------------------------------------------
@@ -452,7 +481,8 @@ class GVMCombination:
                         'correlation': self.corr[sname].copy(),
                     },
                     'error-on-error': {
-                        'value': self.uncertain_systematics.get(sname, 0.0),
+                        'value': (lambda v: v.tolist() if isinstance(v, np.ndarray) else v)
+                                 (self.uncertain_systematics.get(sname, 0.0)),
                         'type': self.eoe_type[sname],
                     },
                 }
@@ -507,11 +537,27 @@ class GVMCombination:
                         )
                     self.eoe_type[sname] = eoe['type']
                 if 'value' in eoe:
-                    e = float(eoe['value'])
-                    if e == 0:
-                        self.uncertain_systematics.pop(sname, None)
+                    val = eoe['value']
+                    if self.eoe_type.get(sname, 'dependent') == 'independent':
+                        if isinstance(val, (list, tuple, np.ndarray)):
+                            eps = np.asarray(val, dtype=float)
+                            if eps.size == 1:
+                                eps = np.repeat(eps, self.n_meas)
+                            elif eps.size != self.n_meas:
+                                raise ValueError(
+                                    f'Systematic "{sname}" independent error-on-error must have {self.n_meas} values')
+                        else:
+                            eps = np.repeat(float(val), self.n_meas)
+                        if np.all(eps == 0):
+                            self.uncertain_systematics.pop(sname, None)
+                        else:
+                            self.uncertain_systematics[sname] = eps
                     else:
-                        self.uncertain_systematics[sname] = e
+                        e = float(val)
+                        if e == 0:
+                            self.uncertain_systematics.pop(sname, None)
+                        else:
+                            self.uncertain_systematics[sname] = e
 
         self._validate_combination()
 
@@ -584,8 +630,8 @@ class GVMCombination:
         keys = list(self.C_inv.keys())
         sizes = [self.C_inv[k].shape[0] for k in keys]
         idx = np.cumsum([0] + sizes)
-        thetas = [thetas[idx[i]:idx[i+1]] for i in range(len(keys))]
-        eps = [self.uncertain_systematics[k] for k in keys]
+        thetas = [np.asarray(thetas[idx[i]:idx[i+1]]) for i in range(len(keys))]
+        eps = [np.asarray(self.uncertain_systematics[k], dtype=float) for k in keys]
         C_inv_list = [self.C_inv[k] for k in keys]
         N_s = sizes
         S = []
@@ -625,9 +671,10 @@ class GVMCombination:
                 diag_W_sq = diag_W ** 2
                 diag_Wt = np.diag(Wt_s)
                 diag_Wt_sq = diag_Wt ** 2
-                b_lik += np.sum((4 * e ** 2 / S_s) * diag_W - (e ** 2 / S_s ** 2) * diag_W_sq)
-                b_theta += np.sum((4 * e ** 2 / S_s) * diag_Wt - (e ** 2 / S_s ** 2) * diag_Wt_sq)
-                b_chi2 += 3 * N * e ** 2
+                e2 = e ** 2
+                b_lik += np.sum((4 * e2 / S_s) * diag_W - (e2 / S_s ** 2) * diag_W_sq)
+                b_theta += np.sum((4 * e2 / S_s) * diag_Wt - (e2 / S_s ** 2) * diag_Wt_sq)
+                b_chi2 += np.sum(3 * e2)
                 
         b_profile = 1 + b_lik - b_theta
         b_chi2 = float(len(self.y) - 1) + b_chi2 - b_lik
