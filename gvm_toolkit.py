@@ -8,6 +8,7 @@ class GVMCombination:
     """General combination tool using the Gamma Variance model."""
 
     def __init__(self, config_file):
+    #turn measurements and y into a dictionary
         cfg = self._parse_config(config_file)
 
         glob = cfg['global']
@@ -54,6 +55,7 @@ class GVMCombination:
 
     # ------------------------------------------------------------------
     def _parse_config(self, path):
+    #Update to turn y into a dictionary
         """Parse a YAML configuration file."""
 
         base_dir = os.path.dirname(path)
@@ -116,6 +118,8 @@ class GVMCombination:
             raise KeyError('Configuration must define "syst" section') from exc
 
         meas_map = {m: i for i, m in enumerate(labels)}
+        cfg['data'] = {'measurements': meas_data, 'V_stat': V_stat}
+        
         syst_dict = {}
         for item in syst_entries:
             name = item['name']
@@ -174,12 +178,12 @@ class GVMCombination:
             lab: {'central': c, 'stat': np.sqrt(V_stat[i, i])}
             for i, (lab, c) in enumerate(zip(labels, central))
         }
-        cfg['data'] = {'measurements': meas_data, 'V_stat': V_stat}
         cfg['syst'] = syst_dict
         return cfg
 
     # ------------------------------------------------------------------
     def _validate_combination(self):
+        #First and third dictionary will now be redunt with the y dictionary update
         """Validate consistency of the combination inputs."""
         if len(self.measurements) != self.n_meas:
             raise ValueError(
