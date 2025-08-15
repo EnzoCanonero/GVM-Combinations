@@ -8,7 +8,6 @@ class GVMCombination:
     """General combination tool using the Gamma Variance model."""
 
     def __init__(self, config_file):
-    #turn measurements and y into a dictionary
         cfg = self._parse_config(config_file)
 
         glob = cfg['global']
@@ -16,15 +15,18 @@ class GVMCombination:
         self.n_meas = glob['n_meas']
         self.n_syst = glob['n_syst']
 
-        meas_dict = cfg['data']['measurements']
-        self.measurements = list(meas_dict.keys())
-        self.y = np.array([meas_dict[m]['central'] for m in self.measurements],
-                          dtype=float)
+        # Store measurements in a dictionary {name: value}
+        self.measurements = {
+            m: float(v) for m, v in cfg['data']['measurements'].items()
+        }
         self.V_stat = np.asarray(cfg['data']['V_stat'], dtype=float)
 
+        # Build systematic shift arrays following the measurement ordering
         self.syst = {
-            sname: np.array([cfg['syst'][sname]['values'][m]
-                             for m in self.measurements], dtype=float)
+            sname: np.array(
+                [cfg['syst'][sname]['values'][m] for m in self.measurements],
+                dtype=float,
+            )
             for sname in cfg['syst']
         }
 
@@ -55,10 +57,8 @@ class GVMCombination:
 
     # ------------------------------------------------------------------
     def _parse_config(self, path):
-    #Update to turn y into a dictionary
         """Parse a YAML configuration file."""
 
-        base_dir = os.path.dirname(path)
         with open(path, 'r') as f:
             data = yaml.safe_load(f)
 
@@ -66,6 +66,9 @@ class GVMCombination:
         try:
             glob = data['global']
             corr_dir = glob.get('corr_dir', '')
+            root_dir = os.path.dirname(os.path.dirname(path))
+            if corr_dir and not os.path.isabs(corr_dir):
+                corr_dir = os.path.join(root_dir, corr_dir)
             name = glob['name']
             n_meas = int(glob['n_meas'])
             n_syst = int(glob['n_syst'])
@@ -85,6 +88,7 @@ class GVMCombination:
             meas_entries = combo['measurements']
         except KeyError as exc:
             raise KeyError('Data configuration must define "measurements"') from exc
+
         labels, central, stat_err = [], [], []
         for m in meas_entries:
             try:
@@ -105,12 +109,16 @@ class GVMCombination:
         if stat_cov_path:
             stat_cov_path = stat_cov_path.replace('${global.corr_dir}', corr_dir)
             if not os.path.isabs(stat_cov_path):
-                stat_cov_path = os.path.join(corr_dir, stat_cov_path)
+                stat_cov_path = os.path.join(os.path.dirname(path), stat_cov_path)
             V_stat = np.loadtxt(stat_cov_path, dtype=float)
         elif stat_err:
             V_stat = np.diag(np.array(stat_err, dtype=float) ** 2)
         else:
             raise KeyError('Measurement stat errors or covariance required')
+
+        # Store measurements as {label: central}
+        meas_data = {lab: c for lab, c in zip(labels, central)}
+        cfg['data'] = {'measurements': meas_data, 'V_stat': V_stat}
 
         try:
             syst_entries = data['syst']
@@ -118,8 +126,6 @@ class GVMCombination:
             raise KeyError('Configuration must define "syst" section') from exc
 
         meas_map = {m: i for i, m in enumerate(labels)}
-        cfg['data'] = {'measurements': meas_data, 'V_stat': V_stat}
-        
         syst_dict = {}
         for item in syst_entries:
             name = item['name']
@@ -174,28 +180,20 @@ class GVMCombination:
                 'corr': corr,
             }
 
-        meas_data = {
-            lab: {'central': c, 'stat': np.sqrt(V_stat[i, i])}
-            for i, (lab, c) in enumerate(zip(labels, central))
-        }
         cfg['syst'] = syst_dict
         return cfg
 
     # ------------------------------------------------------------------
     def _validate_combination(self):
-        #First and third dictionary will now be redunt with the y dictionary update
         """Validate consistency of the combination inputs."""
-        if len(self.measurements) != self.n_meas:
+        meas_names = list(self.measurements)
+        if len(meas_names) != self.n_meas:
             raise ValueError(
-                f'Expected {self.n_meas} measurements, got {len(self.measurements)}')
+                f'Expected {self.n_meas} measurements, got {len(meas_names)}')
 
         if len(self.syst) != self.n_syst:
             raise ValueError(
                 f'Expected {self.n_syst} systematics, got {len(self.syst)}')
-
-        if self.y.shape[0] != self.n_meas:
-            raise ValueError(
-                f'Central values vector must have {self.n_meas} elements')
 
         if self.V_stat.shape != (self.n_meas, self.n_meas):
             raise ValueError(
@@ -205,7 +203,7 @@ class GVMCombination:
             if i < j:
                 warnings.warn(
                     f'Stat covariance asymmetric for measurements '
-                    f'{self.measurements[i]} and {self.measurements[j]}: '
+                    f'{meas_names[i]} and {meas_names[j]}: '
                     f'{self.V_stat[i, j]} vs {self.V_stat[j, i]}')
 
         for name, arr in self.syst.items():
@@ -226,7 +224,7 @@ class GVMCombination:
                 if i < j:
                     warnings.warn(
                         f'Correlation matrix "{name}" asymmetric for measurements '
-                        f'{self.measurements[i]} and {self.measurements[j]}: '
+                        f'{meas_names[i]} and {meas_names[j]}: '
                         f'{mat[i, j]} vs {mat[j, i]}')
             if self.eoe_type.get(name, 'dependent') == 'independent':
                 if not np.allclose(mat, np.eye(self.n_meas)):
@@ -285,7 +283,7 @@ class GVMCombination:
 
     # ------------------------------------------------------------------
     def _compute_likelihood_matrices(self):
-        n = self.y.size
+        n = len(self.measurements)
         V_stat = self.V_stat
         V_syst = np.zeros((n, n))
         for src, rho in self.corr.items():
@@ -320,7 +318,8 @@ class GVMCombination:
 
         adj = np.sum([self.Gamma[k] @ thetas[i]
                       for i, k in enumerate(self.Gamma)], axis=0) if thetas else 0
-        v = self.y - mu - adj
+        y_vals = np.fromiter(self.measurements.values(), dtype=float)
+        v = y_vals - mu - adj
         chi2_y = v @ self.V_inv @ v
 
         chi2_u = 0.0
@@ -364,7 +363,8 @@ class GVMCombination:
             for j in range(self.Gamma[key].shape[1]):
                 names.append(f'{key}_{j}')
 
-        initial = [np.mean(self.y)] + [0.] * (len(names) - 1)
+        y_vals = np.fromiter(self.measurements.values(), dtype=float)
+        initial = [np.mean(y_vals)] + [0.] * (len(names) - 1)
 
         # Determine which parameters are free
         free_idx = []
@@ -454,7 +454,7 @@ class GVMCombination:
     def input_data(self):
         """Return a dictionary summarising the current combination input."""
 
-        meas = self.measurements
+        meas = list(self.measurements)
 
         cfg = {
             'global': {
@@ -465,7 +465,7 @@ class GVMCombination:
             'data': {
                 'measurements': {
                     m: {
-                        'central': float(self.y[i]),
+                        'central': float(self.measurements[m]),
                         'stat': float(np.sqrt(self.V_stat[i, i]))
                     }
                     for i, m in enumerate(meas)
@@ -507,7 +507,7 @@ class GVMCombination:
         meas_info = data.get('measurements', {})
         for m, vals in meas_info.items():
             if 'central' in vals:
-                self.y[idx[m]] = float(vals['central'])
+                self.measurements[m] = float(vals['central'])
             if 'stat' in vals:
                 self.V_stat[idx[m], idx[m]] = float(vals['stat']) ** 2
 
@@ -621,8 +621,8 @@ class GVMCombination:
 
         if len(self.C_inv) == 0:
             # No nuisance parameters: both corrections reduce to their
-            # asymptotic values.  ``self.y`` holds the measured values.
-            return 1.0, float(len(self.y) - 1)
+            # asymptotic values.  ``self.measurements`` holds the measured values.
+            return 1.0, float(len(self.measurements) - 1)
 
         thetas = self.fit_results['thetas']
         keys = list(self.C_inv.keys())
@@ -675,7 +675,7 @@ class GVMCombination:
                 b_chi2 += np.sum(3 * e2)
                 
         b_profile = 1 + b_lik - b_theta
-        b_chi2 = float(len(self.y) - 1) + b_chi2 - b_lik
+        b_chi2 = float(len(self.measurements) - 1) + b_chi2 - b_lik
         return b_profile, b_chi2
 
     # ------------------------------------------------------------------
@@ -744,7 +744,7 @@ class GVMCombination:
         if thetas.size == 0:
             q = 2 * self.nll(mu)
             _, b_chi2 = self.bartlett_correction()
-            return q * (len(self.y) - 1) / b_chi2
+            return q * (len(self.measurements) - 1) / b_chi2
         if not isinstance(thetas[0], (list, np.ndarray)):
             keys = list(self.C_inv.keys())
             sizes = [self.C_inv[k].shape[0] for k in keys]
@@ -754,4 +754,4 @@ class GVMCombination:
 
         q = 2 * self.nll(mu, *thetas)
         _, b_chi2 = self.bartlett_correction()
-        return q * (len(self.y) - 1) / b_chi2
+        return q * (len(self.measurements) - 1) / b_chi2
