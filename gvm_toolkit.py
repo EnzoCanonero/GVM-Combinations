@@ -159,9 +159,6 @@ class GVMCombination:
                     eps_list = [float(eps_val)]
                 if len(eps_list) == 1:
                     eps_list *= n_meas
-                elif len(eps_list) != n_meas:
-                    raise ValueError(
-                        f'Systematic "{name}" independent error-on-error must have {n_meas} values')
                 eps_val = eps_list
             else:
                 eps_val = float(eps_val)
@@ -543,9 +540,6 @@ class GVMCombination:
                             eps = np.asarray(val, dtype=float)
                             if eps.size == 1:
                                 eps = np.repeat(eps, self.n_meas)
-                            elif eps.size != self.n_meas:
-                                raise ValueError(
-                                    f'Systematic "{sname}" independent error-on-error must have {self.n_meas} values')
                         else:
                             eps = np.repeat(float(val), self.n_meas)
                         if np.all(eps == 0):
