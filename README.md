@@ -111,3 +111,5 @@ syst:
       value: 0.02
       type: dependent
 ```
+
+More information can be found in the [toy](tutorials/toy) folder.
