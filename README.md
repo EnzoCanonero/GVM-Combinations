@@ -9,14 +9,18 @@ The toolkit constructs the likelihood
 
 $$
 \ell_p(\mu,\boldsymbol{\theta}) = -\frac{1}{2}\sum_{i,j=1}^N
-\left(y_i-\mu-\sum_{s=1}^M \Gamma_i^{s}\theta^i_s\right)V_{ij}^{-1}
+\left(y_i-\mu-\sum_{s=1}^M \Gamma_i^{s}\theta^i_s\right)W_{ij}^{-1}
 \left(y_j-\mu-\sum_{s=1}^M \Gamma_j^{s}\theta^j_s\right)
 -\frac{1}{2}\sum_{s=1}^M \left(N+\frac{1}{2\varepsilon_s^2}\right)
 \log\!\left[1 + 2\varepsilon_s^2 \sum_{i,j=1}^N \theta^i_s
 \left(\rho^{(s)}\right)_{ij}^{-1} \theta^j_s\right]\,.
 $$
 
-Here $\mu$ is the parameter of interest, $\boldsymbol{\theta}$ are nuisance parameters for each systematic source $s$, $\Gamma_i^{s}$ encodes the effect of $s$ on measurement $i$, $V$ is the covariance matrix among measurements, and $\rho^{(s)}$ is the correlation matrix due to source $s$. More details can be found in [arXiv:2407.05322](https://arxiv.org/abs/2407.05322).
+Here $\mu$ is the parameter of interest, $\boldsymbol{\theta}$ are nuisance parameters for each systematic source $s$, and $\Gamma_i^{s}$ encodes the effect of $s$ on measurement $i$. The covariance matrix entering the likelihood is
+$W_{ij}=V_{ij}+ \sum_{s\in\{\varepsilon_s=0\}} U_{ij}^{(s)}$ with $U_{ij}^{(s)}=\Gamma_i^{s}\Gamma_j^{s}\sigma_{u_s}^2$
+and $V$ the covariance matrix among measurements. The sum runs over systematics whose error-on-error
+$\varepsilon_s$ vanishes; their nuisance parameters are profiled out in a BLUE-like combination.
+$\rho^{(s)}$ is the correlation matrix due to source $s$. More details can be found in [arXiv:2407.05322](https://arxiv.org/abs/2407.05322).
 
 ## Usage
 
