@@ -12,7 +12,7 @@ $$
 \left(y_i-\mu-\sum_{p=1} \Gamma_i^{p}\theta^i_p\right)W_{ij}^{-1}
 \left(y_j-\mu-\sum_{p=1} \Gamma_j^{p}\theta^j_p\right)
 -\frac{1}{2}\sum_{p=1} \left(N+\frac{1}{2\varepsilon_p^2}\right)
-\log\!\left[1 + 2\varepsilon_p^2 \sum_{i,j=1}^N \theta^i_p
+\log\\left[1 + 2\varepsilon_p^2 \sum_{i,j=1}^N \theta^i_p
 \left(\rho^{(p)}\right)_{ij}^{-1} \theta^j_p\right] .
 $$
 
