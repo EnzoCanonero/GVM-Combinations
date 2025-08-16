@@ -5,6 +5,19 @@ combining correlated measurements.  The provided `GVMCombination` class builds
 the likelihood, minimises it with *Minuit* and computes confidence intervals
 using an analytic Bartlett correction.
 
+The toolkit constructs the likelihood
+
+$$
+\ell_p(\mu,\boldsymbol{\theta}) = -\frac{1}{2}\sum_{i,j=1}^N
+\left(y_i-\mu-\sum_{s=1}^M \Gamma_i^{s}\theta^i_s\right)V_{ij}^{-1}
+\left(y_j-\mu-\sum_{s=1}^M \Gamma_j^{s}\theta^j_s\right)
+-\frac{1}{2}\sum_{s=1}^M \left(N+\frac{1}{2\varepsilon_s^2}\right)
+\log\!\left[1 + 2\varepsilon_s^2 \sum_{i,j=1}^N \theta^i_s
+\left(\rho^{(s)}\right)_{ij}^{-1} \theta^j_s\right]\,.
+$$
+
+Here $\mu$ is the parameter of interest, $\boldsymbol{\theta}$ are nuisance parameters for each systematic source $s$, $\Gamma_i^{s}$ encodes the effect of $s$ on measurement $i$, $V$ is the covariance matrix among measurements, and $\rho^{(s)}$ is the correlation matrix due to source $s$. More details can be found in [arXiv:2407.05322](https://arxiv.org/abs/2407.05322).
+
 ## Usage
 
 ```python
