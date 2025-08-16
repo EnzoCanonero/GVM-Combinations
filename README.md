@@ -41,7 +41,7 @@ $\rho^{(s)}$ again the corresponding correlation matrix. The sum runs over
 systematic sources with vanishing error-on-error $(\varepsilon_s = 0)$; their
 nuisance parameters are profiled out, as in a BLUE-like combination.
 
-Further details can be found in \href{https://arxiv.org/abs/2407.05322}{arXiv:2407.05322}.
+Further details can be found in [arXiv:2407.05322](https://arxiv.org/abs/2407.05322).
 
 
 ## Setup
