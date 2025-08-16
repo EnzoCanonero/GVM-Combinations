@@ -54,6 +54,16 @@ provided to install them all::
 This installs the dependencies listed in ``requirements.txt`` using
 ``pip``.
 
+## Usage
+
+```python
+from gvm_toolkit import GVMCombination
+
+comb = GVMCombination("path/to/config.yaml")
+```
+
+A comprehensive introductory tutorial is available in the [toy](tutorials/toy) folder. The top mass example from the [paper](https://arxiv.org/abs/2407.05322) can be found in the [top-mass](tutorials/top-mass) folder.
+
 ## Configuration File
 
 The combination is driven by a YAML configuration file with three main
