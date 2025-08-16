@@ -1,62 +1,48 @@
 # GVM Combination Toolkit
 
-This repository contains a simple implementation of the Gamma Variance Model (GVM) for
-combining correlated measurements.  The provided `GVMCombination` class builds
-the likelihood, minimises it with *Minuit* and computes confidence intervals
-using an analytic Bartlett correction.
+This repository provides a simple implementation of the Gamma Variance Model (GVM) for
+combining correlated measurements. The `GVMCombination` class constructs the likelihood,
+performs the minimisation with *Minuit*, and computes confidence intervals using an
+analytic Bartlett correction.
 
-The toolkit constructs the likelihood
+The likelihood is defined as
 
 $$
 \ell_p(\mu,\boldsymbol{\theta}) = -\frac{1}{2}\sum_{i,j=1}^N
-\left(y_i-\mu-\sum_{s=1}^M \Gamma_i^{s}\theta^i_s\right)W_{ij}^{-1}
-\left(y_j-\mu-\sum_{s=1}^M \Gamma_j^{s}\theta^j_s\right)
--\frac{1}{2}\sum_{s=1}^M \left(N+\frac{1}{2\varepsilon_s^2}\right)
-\log\!\left[1 + 2\varepsilon_s^2 \sum_{i,j=1}^N \theta^i_s
-\left(\rho^{(s)}\right)_{ij}^{-1} \theta^j_s\right]\,.
+\left(y_i-\mu-\sum_{p=1} \Gamma_i^{p}\theta^i_p\right)W_{ij}^{-1}
+\left(y_j-\mu-\sum_{p=1} \Gamma_j^{p}\theta^j_p\right)
+-\frac{1}{2}\sum_{p=1} \left(N+\frac{1}{2\varepsilon_p^2}\right)
+\log\!\left[1 + 2\varepsilon_p^2 \sum_{i,j=1}^N \theta^i_p
+\left(\rho^{(p)}\right)_{ij}^{-1} \theta^j_p\right] .
 $$
 
+Here, $\mu$ is the parameter of interest, and $\boldsymbol{\theta}$ denotes the nuisance
+parameters associated with each systematic source $p$, for which the corresponding
+error-on-error $\varepsilon_p$ is greater than zero. The coefficients $\Gamma_i^{p}$ quantify 
+the uncertainty induced by systematic source $p$ on measurement $i$, while $\rho^{(p)}$ is 
+the correlation matrix describing correlations among measurements due to source $p$.
 
-Here $\mu$ is the parameter of interest, $\boldsymbol{\theta}$ are nuisance parameters for each systematic source $s$, and $\Gamma_i^{s}$ encodes the effect of $s$ on measurement $i$. The covariance matrix entering the likelihood is defined as
+All other sources of systematic uncertainty, together with the statistical errors,
+are encoded in a BLUE-like covariance matrix defined as
 
 $$
-W_{ij}=V_{ij}+ \sum_{s\in\{\varepsilon_s=0\}} U_{ij}^{(s)}\, ,
+W_{ij}=V_{ij}+ \sum_{s\in\{\varepsilon_s=0\}} U_{ij}^{(s)} ,
 $$
 
 with
 
 $$
-U_{ij}^{(s)}=\Gamma_i^{s}\Gamma_j^{s}\sigma_{u_s}^2\, ,
+U_{ij}^{(s)}=\rho^{(s)}_{ij}\Gamma_i^{s}\Gamma_j^{s}.
 $$
 
-and $V$ the covariance matrix among measurements. The sum runs over systematics whose error-on-error $\varepsilon_s$ vanishes; their nuisance parameters are profiled out in a BLUE-like combination. $\rho^{(s)}$ is the correlation matrix due to source $s$. More details can be found in [arXiv:2407.05322](https://arxiv.org/abs/2407.05322).
+Here, $V$ is the statistical covariance matrix of the measurements,
+and $U^{(s)}_{ij}$ is the contribution from systematic source $s$, with
+$\rho^{(s)}$ again the corresponding correlation matrix. The sum runs over
+systematic sources with vanishing error-on-error $(\varepsilon_s = 0)$; their
+nuisance parameters are profiled out, as in a BLUE-like combination.
 
-## Usage
+Further details can be found in \href{https://arxiv.org/abs/2407.05322}{arXiv:2407.05322}.
 
-```python
-from gvm_toolkit import GVMCombination
-
-# create the combination directly from a configuration file
-comb = GVMCombination("input_files/LHC_mass_combination.yaml")
-
-print("mu hat:", comb.fit_results['mu'])
-
-print("68% CI:", comb.confidence_interval())
-print("Goodness of fit:", comb.goodness_of_fit())
-
-# access a dictionary with all input values
-info = comb.input_data()
-
-# modify the input and update the combination
-info['data']['measurements']['ATLAS']['central'] = 173.4
-info['syst']['JES']['values']['ATLAS'] += 0.1
-comb.update_data(info)
-```
-
-Only the construction of the likelihood, numerical minimisation and the
-analytical Bartlett correction are implemented.  Plotting routines and code
-specific to the top-quark mass combination were removed to keep the toolkit
-lightweight and general.
 
 ## Setup
 
@@ -66,8 +52,7 @@ provided to install them all::
     ./setup.sh
 
 This installs the dependencies listed in ``requirements.txt`` using
-``pip``.  You may also run ``pip install -r requirements.txt`` directly
-if preferred.
+``pip``.
 
 ## Configuration File
 
@@ -116,8 +101,3 @@ syst:
       value: 0.02
       type: dependent
 ```
-
-
-See ``input_files/LHC_mass_combination.yaml`` for a complete example using
-statistical errors.  ``input_files/LHC_mass_combination_cov.yaml`` shows the
-equivalent setup with a statistical covariance matrix.
