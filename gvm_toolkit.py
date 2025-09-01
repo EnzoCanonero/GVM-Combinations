@@ -43,7 +43,10 @@ class GVMCombination:
             val = cfg['syst'][s]['error-on-error']['value']
             if self.eoe_type.get(s, 'dependent') == 'independent':
                 eps = np.asarray(val, dtype=float)
-                if np.any(eps != 0.0):
+                sigma = self.syst[s]
+                mask = sigma != 0.0
+                eps = eps[mask]
+                if eps.size > 0 and np.any(eps != 0.0):
                     self.uncertain_systematics[s] = eps
             else:
                 eps = float(val)
@@ -230,8 +233,9 @@ class GVMCombination:
 
         for name, typ in self.eoe_type.items():
             if typ == 'independent':
-                eps = np.asarray(self.uncertain_systematics.get(name, np.zeros(self.n_meas)))
-                if eps.shape[0] != self.n_meas:
+                expected = np.count_nonzero(self.syst[name])
+                eps = np.asarray(self.uncertain_systematics.get(name, np.zeros(expected)))
+                if eps.shape[0] != expected:
                     raise ValueError(
                         f'Systematic {name} has independent error-on-error but epsilon has {eps.shape[0]} values')
 
@@ -541,9 +545,14 @@ class GVMCombination:
                             eps = np.asarray(val, dtype=float)
                             if eps.size == 1:
                                 eps = np.repeat(eps, self.n_meas)
+                            elif eps.size != self.n_meas:
+                                raise ValueError(
+                                    f'Systematic "{sname}" epsilon has {eps.size} values, expected {self.n_meas}')
                         else:
                             eps = np.repeat(float(val), self.n_meas)
-                        if np.all(eps == 0):
+                        mask = self.syst[sname] != 0.0
+                        eps = eps[mask]
+                        if eps.size == 0 or np.all(eps == 0):
                             self.uncertain_systematics.pop(sname, None)
                         else:
                             self.uncertain_systematics[sname] = eps
