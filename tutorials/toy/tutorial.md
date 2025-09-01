@@ -67,7 +67,8 @@ The `diagonal` option corresponds to:
 ```
 
 ```python
-comb = GVMCombination('input_files/diag_corr.yaml')
+comb = GVMCombination.from_yaml('input_files/diag_corr.yaml')
+comb.fit()
 mu_hat = comb.fit_results['mu']
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
@@ -115,7 +116,8 @@ print(f'χ² = {chi_2:.3f}, significance = {significance} \n')
 ```
 
 ```python
-comb = GVMCombination('input_files/hybrid_corr.yaml')
+comb = GVMCombination.from_yaml('input_files/hybrid_corr.yaml')
+comb.fit()
 mu_hat = comb.fit_results['mu']
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
@@ -162,7 +164,8 @@ The `ones` option corresponds to:
 ```
 
 ```python
-comb = GVMCombination('input_files/full_corr.yaml')
+comb = GVMCombination.from_yaml('input_files/full_corr.yaml')
+comb.fit()
 mu_hat = comb.fit_results['mu']
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
@@ -219,7 +222,8 @@ The `ones` option corresponds to:
 ```
 
 ```python
-comb = GVMCombination('input_files/stat_cov.yaml')
+comb = GVMCombination.from_yaml('input_files/stat_cov.yaml')
+comb.fit()
 mu_hat = comb.fit_results['mu']
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
@@ -237,7 +241,7 @@ You can obtain the current input with `input_data()` and modify the returned dic
 After editing, pass it to `update_data()` to apply the changes before refitting.
 
 ```python
-comb = GVMCombination('input_files/diag_corr.yaml')
+comb = GVMCombination.from_yaml('input_files/diag_corr.yaml')
 info = comb.input_data()
 info['data']['measurements']['m1']['central'] = 2.0
 info['syst']['sys1']['shift']['value']['m1'] = 0.5
@@ -279,7 +283,7 @@ Here, we reinitialize the combination using the configuration file `diag_corr.ya
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
-comb = GVMCombination('input_files/diag_corr.yaml')
+comb = GVMCombination.from_yaml('input_files/diag_corr.yaml')
 
 base_info = comb.input_data()
 
@@ -381,7 +385,7 @@ Here, we set \( y_1 = 2.5 \) and \( y_2 = -2.5 \) to illustrate how errors-on-er
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
-comb = GVMCombination('input_files/diag_corr.yaml')
+comb = GVMCombination.from_yaml('input_files/diag_corr.yaml')
 
 base_info = comb.input_data()
 cv = []
@@ -487,7 +491,7 @@ Here, we focus exclusively on the case where the input measurements are in mutua
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
-comb = GVMCombination('input_files/diag_corr.yaml')
+comb = GVMCombination.from_yaml('input_files/diag_corr.yaml')
 
 base_info = comb.input_data()
 cv = []
@@ -585,7 +589,7 @@ For completeness, we show the results for the two remaining examples: a systemat
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
-comb = GVMCombination('input_files/hybrid_corr.yaml')
+comb = GVMCombination.from_yaml('input_files/hybrid_corr.yaml')
 
 base_info = comb.input_data()
 cv = []
@@ -659,7 +663,7 @@ plt.show()
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
-comb = GVMCombination('input_files/full_corr.yaml')
+comb = GVMCombination.from_yaml('input_files/full_corr.yaml')
 
 base_info = comb.input_data()
 cv = []
@@ -733,6 +737,3 @@ This example represents a pathological case, illustrating how, when the error-on
 In general, this highlights that a large error-on-error for this systematic is pathological. The imprecise knowledge of the systematic effect poses a serious problem, rendering the averaging of the two measurements meaningless.
 
 Furthermore, in more realistic combinations involving additional measurements and multiple systematic uncertainties, such pathological behaviours are expected to be less common, as demonstrated in the top-mass tutorial.
-
-
-

@@ -5,7 +5,7 @@ from gvm_toolkit import GVMCombination
 
 here = os.path.dirname(__file__)
 os.chdir(here)
-comb = GVMCombination('input_files/LHC_comb.yaml')
+comb = GVMCombination.from_yaml('input_files/LHC_comb.yaml')
 info = comb.input_data()
 for k in info['syst']:
     info['syst'][k]['error-on-error']['value'] = 0.0
@@ -14,7 +14,7 @@ comb.update_data(info)
 print('mu', comb.fit_results['mu'])
 print('ci', comb.confidence_interval())
 
-comb_fict = GVMCombination('input_files/LHC_comb_fictitious_meas.yaml')
+comb_fict = GVMCombination.from_yaml('input_files/LHC_comb_fictitious_meas.yaml')
 info = comb_fict.input_data()
 for k in info['syst']:
     info['syst'][k]['error-on-error']['value'] = 0.0

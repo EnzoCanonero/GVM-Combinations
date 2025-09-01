@@ -8,7 +8,6 @@ class GVMCombination:
     """General combination tool using the Gamma Variance model."""
 
     def __init__(self, cfg):
-        cfg = self._parse_config(config_file)
 
         glob = cfg['global']
         self.name = glob['name']
