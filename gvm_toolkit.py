@@ -7,7 +7,7 @@ import warnings
 class GVMCombination:
     """General combination tool using the Gamma Variance model."""
 
-    def __init__(self, config_file):
+    def __init__(self, cfg):
         cfg = self._parse_config(config_file)
 
         glob = cfg['global']
@@ -53,13 +53,50 @@ class GVMCombination:
                 if eps != 0.0:
                     self.uncertain_systematics[s] = eps
 
+        # prepared empty state
+        self.V_inv = None
+        self.C_inv = {}
+        self.Gamma = {}
+        self.fit_results = None
+        
+    @classmethod
+    def from_yaml(cls, path, prepare=True):
+        """Create an instance from a YAML configuration file.
+        Parameters
+        ----------
+        path : str
+            Path to the YAML configuration file.
+        prepare : bool, optional
+            If True (default), run ``prepare()`` before returning the
+            instance so it is ready for fitting.
+        """
+        cfg = cls._parse_config(path)
+        inst = cls(cfg)
+        if prepare:
+            inst.prepare()
+        return inst
+    
+    def prepare(self):
+        """Validate inputs and compute internal matrices for likelihood.
+        This must be called before calling likelihood or fitting methods
+        if the instance was not created via ``from_yaml(..., prepare=True)``.
+        """
         self._validate_combination()
-
         self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
-        self.fit_results = self.minimize()
+        return self
+    
+    def fit(self, fixed=None, update=True):
+        """Run the minimisation and store the result in ``self.fit_results``.
+        This is a convenience wrapper around ``minimize`` that ensures the
+        instance is prepared before fitting.
+        """
+        if self.V_inv is None or not self.Gamma:
+            self.prepare()
+        return self.minimize(fixed=fixed, update=update)
 
     # ------------------------------------------------------------------
-    def _parse_config(self, path):
+    @staticmethod
+    def _parse_config(path):
         """Parse a YAML configuration file."""
 
         with open(path, 'r') as f:
