@@ -1,8 +1,9 @@
 import os
 import numpy as np
 import yaml
-from iminuit import Minuit
 import warnings
+from .fit_results import FitResult
+from .minuit_wrapper import minimize as _minimize
 
 class GVMCombination:
     """General combination tool using the Gamma Variance model."""
@@ -429,11 +430,11 @@ class GVMCombination:
                 thetas.append(np.array(theta_flat[i:i+npar]))
                 i += npar
             nll_val = self.nll(mu, *thetas)
-            result = {
-                'mu': mu,
-                'thetas': np.array(theta_flat),
-                'nll': nll_val,
-            }
+            result = FitResult(
+                mu=mu,
+                thetas=np.array(theta_flat),
+                nll=nll_val,
+            )
             if update:
                 self.fit_results = result
             return result
@@ -454,22 +455,7 @@ class GVMCombination:
                 i += npar
             return self.nll(mu, *thetas)
 
-        if hasattr(Minuit, "from_array_func"):
-            m = Minuit.from_array_func(
-                f,
-                x0,
-                name=free_names,
-                errordef=0.5,
-            )
-        else:
-            # iminuit >=3 removed ``from_array_func``. Use constructor instead.
-            m = Minuit(
-                f,
-                x0,
-                name=free_names,
-            )
-            m.errordef = 0.5
-        m.migrad()
+        m = _minimize(f, x0, free_names, errordef=0.5)
 
         # Collect fitted values
         values = dict(zip(names, initial))
@@ -478,11 +464,11 @@ class GVMCombination:
         for n, v in fixed.items():
             values[n] = v
 
-        result = {
-            'mu': values['mu'],
-            'thetas': np.array([values[n] for n in names[1:]]),
-            'nll': m.fval,
-        }
+        result = FitResult(
+            mu=values['mu'],
+            thetas=np.array([values[n] for n in names[1:]]),
+            nll=m.fval,
+        )
         if update:
             self.fit_results = result
         return result
@@ -608,9 +594,9 @@ class GVMCombination:
     # ------------------------------------------------------------------
     def likelihood_ratio(self, mu):
         best = self.fit_results or self.minimize()
-        nll_best = best['nll'] if 'nll' in best else self.nll(best['mu'], *best['thetas'])
+        nll_best = best.nll if isinstance(best, FitResult) else self.nll(best['mu'], *best['thetas'])
         res_mu = self.minimize(fixed={'mu': mu}, update=False)
-        nll_mu = res_mu['nll']
+        nll_mu = res_mu.nll if isinstance(res_mu, FitResult) else res_mu['nll']
         return 2 * (nll_mu - nll_best)
 
     # ------------------------------------------------------------------
@@ -666,7 +652,7 @@ class GVMCombination:
             # asymptotic values.  ``self.measurements`` holds the measured values.
             return 1.0, float(len(self.measurements) - 1)
 
-        thetas = self.fit_results['thetas']
+        thetas = self.fit_results.thetas if isinstance(self.fit_results, FitResult) else self.fit_results['thetas']
         keys = list(self.C_inv.keys())
         sizes = [self.C_inv[k].shape[0] for k in keys]
         idx = np.cumsum([0] + sizes)
@@ -724,7 +710,7 @@ class GVMCombination:
     def confidence_interval(self, step=0.01, tol=0.001, max_iter=1000):
         b_profile, _ = self.bartlett_correction()
         fit = self.fit_results or self.minimize()
-        mu_hat = fit['mu']
+        mu_hat = fit.mu if isinstance(fit, FitResult) else fit['mu']
         q0 = self.likelihood_ratio(mu_hat)
         up = mu_hat
         q_up = q0
@@ -775,9 +761,9 @@ class GVMCombination:
         """
         fit = self.fit_results if self.fit_results else self.minimize()
         if mu is None:
-            mu = fit['mu']
+            mu = fit.mu if isinstance(fit, FitResult) else fit['mu']
         if thetas is None:
-            thetas = fit['thetas']
+            thetas = fit.thetas if isinstance(fit, FitResult) else fit['thetas']
 
         # ``fit['thetas']`` is stored as a flat array.  Split it into one
         # array per systematic before calling ``nll``.  Handle the case
