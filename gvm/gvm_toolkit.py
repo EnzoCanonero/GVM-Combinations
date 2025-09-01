@@ -4,55 +4,30 @@ import yaml
 import warnings
 from .fit_results import FitResult
 from .minuit_wrapper import minimize as _minimize
-from .config import load_config
+from .config import (
+    validate_input_data,
+    input_data_to_cfg,
+    apply_update,
+)
 
 class GVMCombination:
     """General combination tool using the Gamma Variance model."""
 
-    def __init__(self, cfg):
+    def __init__(self, data):
+        # Accept pre-built input_data (from gvm.config)
+        state = data
+        validate_input_data(state)
 
-        glob = cfg['global']
-        self.name = glob['name']
-        self.n_meas = glob['n_meas']
-        self.n_syst = glob['n_syst']
-
-        # Store measurements in a dictionary {name: value}
-        self.measurements = {
-            m: float(v) for m, v in cfg['data']['measurements'].items()
-        }
-        self.V_stat = np.asarray(cfg['data']['V_stat'], dtype=float)
-
-        # Build systematic shift arrays following the measurement ordering
-        self.syst = {
-            sname: np.array(
-                [cfg['syst'][sname]['values'][m] for m in self.measurements],
-                dtype=float,
-            )
-            for sname in cfg['syst']
-        }
-
-        self.corr = {s: np.asarray(cfg['syst'][s]['corr'], dtype=float)
-                     for s in cfg['syst']}
-
-        self.eoe_type = {
-            s: cfg['syst'][s]['error-on-error']['type']
-            for s in cfg['syst']
-        }
-
-        self.uncertain_systematics = {}
-        for s in cfg['syst']:
-            val = cfg['syst'][s]['error-on-error']['value']
-            if self.eoe_type.get(s, 'dependent') == 'independent':
-                eps = np.asarray(val, dtype=float)
-                sigma = self.syst[s]
-                mask = sigma != 0.0
-                eps = eps[mask]
-                if eps.size > 0 and np.any(eps != 0.0):
-                    self.uncertain_systematics[s] = eps
-            else:
-                eps = float(val)
-                if eps != 0.0:
-                    self.uncertain_systematics[s] = eps
+        self._state = state
+        self.name = state.name
+        self.n_meas = state.n_meas
+        self.n_syst = state.n_syst
+        self.measurements = state.measurements
+        self.V_stat = state.V_stat
+        self.syst = state.syst
+        self.corr = state.corr
+        self.eoe_type = state.eoe_type
+        self.uncertain_systematics = state.uncertain_systematics
 
         # prepared empty state
         self.V_inv = None
@@ -60,29 +35,14 @@ class GVMCombination:
         self.Gamma = {}
         self.fit_results = None
         
-    @classmethod
-    def from_yaml(cls, path, prepare=True):
-        """Create an instance from a YAML configuration file.
-        Parameters
-        ----------
-        path : str
-            Path to the YAML configuration file.
-        prepare : bool, optional
-            If True (default), run ``prepare()`` before returning the
-            instance so it is ready for fitting.
-        """
-        cfg = load_config(path)
-        inst = cls(cfg)
-        if prepare:
-            inst.prepare()
-        return inst
+    # from_yaml removed. Build input via gvm.config and pass to constructor.
     
     def prepare(self):
         """Validate inputs and compute internal matrices for likelihood.
         This must be called before calling likelihood or fitting methods
-        if the instance was not created via ``from_yaml(..., prepare=True)``.
+        if the instance was not prepared yet.
         """
-        self._validate_combination()
+        validate_input_data(self._state)
         self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
         return self
     
@@ -102,59 +62,8 @@ class GVMCombination:
 
     # ------------------------------------------------------------------
     def _validate_combination(self):
-        """Validate consistency of the combination inputs."""
-        meas_names = list(self.measurements)
-        if len(meas_names) != self.n_meas:
-            raise ValueError(
-                f'Expected {self.n_meas} measurements, got {len(meas_names)}')
-
-        if len(self.syst) != self.n_syst:
-            raise ValueError(
-                f'Expected {self.n_syst} systematics, got {len(self.syst)}')
-
-        if self.V_stat.shape != (self.n_meas, self.n_meas):
-            raise ValueError(
-                f'Stat covariance must be {self.n_meas}x{self.n_meas}')
-        diff = np.argwhere(~np.isclose(self.V_stat, self.V_stat.T, rtol=1e-7, atol=1e-8))
-        for i, j in diff:
-            if i < j:
-                warnings.warn(
-                    f'Stat covariance asymmetric for measurements '
-                    f'{meas_names[i]} and {meas_names[j]}: '
-                    f'{self.V_stat[i, j]} vs {self.V_stat[j, i]}')
-
-        for name, arr in self.syst.items():
-            if arr.shape[0] != self.n_meas:
-                raise ValueError(
-                    f'Systematic {name} must have {self.n_meas} values')
-
-        if len(self.corr) != self.n_syst:
-            raise ValueError(
-                f'Expected {self.n_syst} correlation matrices, got {len(self.corr)}')
-
-        for name, mat in self.corr.items():
-            if mat.shape != (self.n_meas, self.n_meas):
-                raise ValueError(
-                    f'Correlation matrix {name} must be {self.n_meas}x{self.n_meas}')
-            diff = np.argwhere(~np.isclose(mat, mat.T, rtol=1e-7, atol=1e-8))
-            for i, j in diff:
-                if i < j:
-                    warnings.warn(
-                        f'Correlation matrix "{name}" asymmetric for measurements '
-                        f'{meas_names[i]} and {meas_names[j]}: '
-                        f'{mat[i, j]} vs {mat[j, i]}')
-            if self.eoe_type.get(name, 'dependent') == 'independent':
-                if not np.allclose(mat, np.eye(self.n_meas)):
-                    raise ValueError(
-                        f'Systematic {name} has independent error-on-error but correlation is not diagonal')
-
-        for name, typ in self.eoe_type.items():
-            if typ == 'independent':
-                expected = np.count_nonzero(self.syst[name])
-                eps = np.asarray(self.uncertain_systematics.get(name, np.zeros(expected)))
-                if eps.shape[0] != expected:
-                    raise ValueError(
-                        f'Systematic {name} has independent error-on-error but epsilon has {eps.shape[0]} values')
+        """Delegate validation to config module."""
+        return validate_input_data(self._state)
 
     # ------------------------------------------------------------------
     def _reduce_corr(self, rho, src_name=None):
@@ -358,45 +267,7 @@ class GVMCombination:
     # ------------------------------------------------------------------
     def input_data(self):
         """Return a dictionary summarising the current combination input."""
-
-        meas = list(self.measurements)
-
-        cfg = {
-            'global': {
-                'name': self.name,
-                'n_meas': self.n_meas,
-                'n_syst': self.n_syst,
-            },
-            'data': {
-                'measurements': {
-                    m: {
-                        'central': float(self.measurements[m]),
-                        'stat': float(np.sqrt(self.V_stat[i, i]))
-                    }
-                    for i, m in enumerate(meas)
-                },
-                'V_stat': self.V_stat.copy(),
-            },
-            'syst': {
-                sname: {
-                    'shift': {
-                        'value': {
-                            m: float(self.syst[sname][i])
-                            for i, m in enumerate(meas)
-                        },
-                        'correlation': self.corr[sname].copy(),
-                    },
-                    'error-on-error': {
-                        'value': (lambda v: v.tolist() if isinstance(v, np.ndarray) else v)
-                                 (self.uncertain_systematics.get(sname, 0.0)),
-                        'type': self.eoe_type[sname],
-                    },
-                }
-                for sname in self.syst
-            },
-        }
-
-        return cfg
+        return input_data_to_cfg(self._state)
 
     # ------------------------------------------------------------------
     def update_data(self, info):
@@ -406,72 +277,23 @@ class GVMCombination:
         :meth:`input_data`.  Only the provided values are updated.
         """
 
-        idx = {m: i for i, m in enumerate(self.measurements)}
+        # Delegate updates to config helpers
+        changed = apply_update(self._state, info)
 
-        data = info.get('data', {})
-        meas_info = data.get('measurements', {})
-        for m, vals in meas_info.items():
-            if 'central' in vals:
-                self.measurements[m] = float(vals['central'])
-            if 'stat' in vals:
-                self.V_stat[idx[m], idx[m]] = float(vals['stat']) ** 2
+        # Sync local references (arrays may be replaced)
+        self.measurements = self._state.measurements
+        self.V_stat = self._state.V_stat
+        self.syst = self._state.syst
+        self.corr = self._state.corr
+        self.eoe_type = self._state.eoe_type
+        self.uncertain_systematics = self._state.uncertain_systematics
 
-        if 'V_stat' in data:
-            V_stat = np.asarray(data['V_stat'], dtype=float)
-            self.V_stat = V_stat
-
-        syst_info = info.get('syst', {})
-        for sname, entry in syst_info.items():
-            if sname not in self.syst:
-                continue
-
-            shift = entry.get('shift')
-            if shift:
-                if 'value' in shift:
-                    for m, val in shift['value'].items():
-                        self.syst[sname][idx[m]] = float(val)
-                if 'correlation' in shift:
-                    mat = np.asarray(shift['correlation'], dtype=float)
-                    self.corr[sname] = mat
-
-            if 'error-on-error' in entry:
-                eoe = entry['error-on-error']
-                if 'type' in eoe:
-                    if eoe['type'] not in ('dependent', 'independent'):
-                        raise ValueError(
-                            f'Systematic "{sname}" has unrecognised error-on-error type "{eoe["type"]}"'
-                        )
-                    self.eoe_type[sname] = eoe['type']
-                if 'value' in eoe:
-                    val = eoe['value']
-                    if self.eoe_type.get(sname, 'dependent') == 'independent':
-                        if isinstance(val, (list, tuple, np.ndarray)):
-                            eps = np.asarray(val, dtype=float)
-                            if eps.size == 1:
-                                eps = np.repeat(eps, self.n_meas)
-                            elif eps.size != self.n_meas:
-                                raise ValueError(
-                                    f'Systematic "{sname}" epsilon has {eps.size} values, expected {self.n_meas}')
-                        else:
-                            eps = np.repeat(float(val), self.n_meas)
-                        mask = self.syst[sname] != 0.0
-                        eps = eps[mask]
-                        if eps.size == 0 or np.all(eps == 0):
-                            self.uncertain_systematics.pop(sname, None)
-                        else:
-                            self.uncertain_systematics[sname] = eps
-                    else:
-                        e = float(val)
-                        if e == 0:
-                            self.uncertain_systematics.pop(sname, None)
-                        else:
-                            self.uncertain_systematics[sname] = e
-
-        self._validate_combination()
+        validate_input_data(self._state)
 
         # Recompute matrices and refit after updates
-        self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
-        self.fit_results = self.minimize()
+        if changed:
+            self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
+            self.fit_results = self.minimize()
 
     # ------------------------------------------------------------------
     def likelihood_ratio(self, mu):
