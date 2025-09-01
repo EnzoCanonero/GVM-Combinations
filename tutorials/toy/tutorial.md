@@ -20,6 +20,7 @@ if gvm_root not in sys.path:
     sys.path.insert(0, gvm_root)
 
 from gvm.gvm_toolkit import GVMCombination
+from gvm.config import load_input_data
 ```
 
 # No errors-on-errors
@@ -67,7 +68,8 @@ The `diagonal` option corresponds to:
 ```
 
 ```python
-comb = GVMCombination.from_yaml('input_files/diag_corr.yaml')
+data = load_input_data('input_files/diag_corr.yaml')
+comb = GVMCombination(data)
 comb.fit()
 mu_hat = comb.fit_results.mu
 ci_low, ci_high, _ = comb.confidence_interval()
@@ -116,7 +118,8 @@ print(f'χ² = {chi_2:.3f}, significance = {significance} \n')
 ```
 
 ```python
-comb = GVMCombination.from_yaml('input_files/hybrid_corr.yaml')
+data = load_input_data('input_files/hybrid_corr.yaml')
+comb = GVMCombination(data)
 comb.fit()
 mu_hat = comb.fit_results.mu
 ci_low, ci_high, _ = comb.confidence_interval()
@@ -164,7 +167,8 @@ The `ones` option corresponds to:
 ```
 
 ```python
-comb = GVMCombination.from_yaml('input_files/full_corr.yaml')
+data = load_input_data('input_files/full_corr.yaml')
+comb = GVMCombination(data)
 comb.fit()
 mu_hat = comb.fit_results.mu
 ci_low, ci_high, _ = comb.confidence_interval()
@@ -222,7 +226,8 @@ The `ones` option corresponds to:
 ```
 
 ```python
-comb = GVMCombination.from_yaml('input_files/stat_cov.yaml')
+data = load_input_data('input_files/stat_cov.yaml')
+comb = GVMCombination(data)
 comb.fit()
 mu_hat = comb.fit_results.mu
 ci_low, ci_high, _ = comb.confidence_interval()
@@ -241,7 +246,8 @@ You can obtain the current input with `input_data()` and modify the returned dic
 After editing, pass it to `update_data()` to apply the changes before refitting.
 
 ```python
-comb = GVMCombination.from_yaml('input_files/diag_corr.yaml')
+data = load_input_data('input_files/diag_corr.yaml')
+comb = GVMCombination(data)
 info = comb.input_data()
 info['data']['measurements']['m1']['central'] = 2.0
 info['syst']['sys1']['shift']['value']['m1'] = 0.5
@@ -283,7 +289,8 @@ Here, we reinitialize the combination using the configuration file `diag_corr.ya
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
-comb = GVMCombination.from_yaml('input_files/diag_corr.yaml')
+data = load_input_data('input_files/diag_corr.yaml')
+comb = GVMCombination(data)
 
 base_info = comb.input_data()
 
@@ -385,7 +392,8 @@ Here, we set \( y_1 = 2.5 \) and \( y_2 = -2.5 \) to illustrate how errors-on-er
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
-comb = GVMCombination.from_yaml('input_files/diag_corr.yaml')
+data = load_input_data('input_files/diag_corr.yaml')
+comb = GVMCombination(data)
 
 base_info = comb.input_data()
 cv = []
@@ -491,7 +499,8 @@ Here, we focus exclusively on the case where the input measurements are in mutua
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
-comb = GVMCombination.from_yaml('input_files/diag_corr.yaml')
+data = load_input_data('input_files/diag_corr.yaml')
+comb = GVMCombination(data)
 
 base_info = comb.input_data()
 cv = []
@@ -589,7 +598,8 @@ For completeness, we show the results for the two remaining examples: a systemat
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
-comb = GVMCombination.from_yaml('input_files/hybrid_corr.yaml')
+data = load_input_data('input_files/hybrid_corr.yaml')
+comb = GVMCombination(data)
 
 base_info = comb.input_data()
 cv = []
@@ -663,7 +673,8 @@ plt.show()
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
-comb = GVMCombination.from_yaml('input_files/full_corr.yaml')
+data = load_input_data('input_files/full_corr.yaml')
+comb = GVMCombination(data)
 
 base_info = comb.input_data()
 cv = []
