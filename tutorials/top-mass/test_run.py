@@ -13,3 +13,12 @@ info['syst']['LHCbJES']['error-on-error']['value'] = 0.1
 comb.update_data(info)
 print('mu', comb.fit_results['mu'])
 print('ci', comb.confidence_interval())
+
+comb_fict = GVMCombination('input_files/LHC_comb_fictitious_meas.yaml')
+info = comb_fict.input_data()
+for k in info['syst']:
+    info['syst'][k]['error-on-error']['value'] = 0.0
+info['syst']['LHCbJES']['error-on-error']['value'] = 0.1
+comb_fict.update_data(info)
+print('mu fict', comb_fict.fit_results['mu'])
+print('ci fict', comb_fict.confidence_interval())
