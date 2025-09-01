@@ -57,7 +57,7 @@ This installs the dependencies listed in ``requirements.txt`` using
 ## Usage
 
 ```python
-from gvm_toolkit import GVMCombination
+from gvm.gvm_toolkit import GVMCombination
 
 comb = GVMCombination("path/to/config.yaml")
 ```

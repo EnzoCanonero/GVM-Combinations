@@ -19,7 +19,7 @@ gvm_root = os.path.abspath(os.path.join(script_dir, "../../"))
 if gvm_root not in sys.path:
     sys.path.insert(0, gvm_root)
 
-from gvm_toolkit import GVMCombination
+from gvm.gvm_toolkit import GVMCombination
 ```
 
 # No errors-on-errors
@@ -69,7 +69,7 @@ The `diagonal` option corresponds to:
 ```python
 comb = GVMCombination.from_yaml('input_files/diag_corr.yaml')
 comb.fit()
-mu_hat = comb.fit_results['mu']
+mu_hat = comb.fit_results.mu
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
 p_value = 1 - chi2.cdf(chi_2, df=1)
@@ -118,7 +118,7 @@ print(f'χ² = {chi_2:.3f}, significance = {significance} \n')
 ```python
 comb = GVMCombination.from_yaml('input_files/hybrid_corr.yaml')
 comb.fit()
-mu_hat = comb.fit_results['mu']
+mu_hat = comb.fit_results.mu
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
 p_value = 1 - chi2.cdf(chi_2, df=1)
@@ -166,7 +166,7 @@ The `ones` option corresponds to:
 ```python
 comb = GVMCombination.from_yaml('input_files/full_corr.yaml')
 comb.fit()
-mu_hat = comb.fit_results['mu']
+mu_hat = comb.fit_results.mu
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
 p_value = 1 - chi2.cdf(chi_2, df=1)
@@ -224,7 +224,7 @@ The `ones` option corresponds to:
 ```python
 comb = GVMCombination.from_yaml('input_files/stat_cov.yaml')
 comb.fit()
-mu_hat = comb.fit_results['mu']
+mu_hat = comb.fit_results.mu
 ci_low, ci_high, _ = comb.confidence_interval()
 chi_2 = comb.goodness_of_fit()
 p_value = 1 - chi2.cdf(chi_2, df=1)
@@ -258,7 +258,7 @@ info['syst']['sys1']['shift']['correlation']
 ```python
 comb.update_data(info)
 comb.fit_results = comb.minimize()
-print(f"updated mu_hat={comb.fit_results['mu']:.4f}")
+print(f"updated mu_hat={comb.fit_results.mu:.4f}")
 ```
 
     updated mu_hat=0.6949
@@ -304,7 +304,7 @@ for eps in eps_grid:
     base_info = deepcopy(base_info)
     base_info['syst']['sys1']['error-on-error']['value'] = float(eps)
     comb.update_data(base_info)
-    cv.append(comb.fit_results['mu'])
+    cv.append(comb.fit_results.mu)
     lower_bound.append(comb.confidence_interval()[0])
     upper_bound.append(comb.confidence_interval()[1])
     ci.append(comb.confidence_interval()[2])
@@ -408,7 +408,7 @@ for eps in eps_grid:
     base_info = deepcopy(base_info)
     base_info['syst']['sys1']['error-on-error']['value'] = float(eps)
     comb.update_data(base_info)
-    cv.append(comb.fit_results['mu'])
+    cv.append(comb.fit_results.mu)
     lower_bound.append(comb.confidence_interval()[0])
     upper_bound.append(comb.confidence_interval()[1])
     ci.append(comb.confidence_interval()[2])
@@ -512,7 +512,7 @@ for eps in eps_grid:
     base_info = deepcopy(base_info)
     base_info['syst']['sys1']['error-on-error']['value'] = float(eps)
     comb.update_data(base_info)
-    cv.append(comb.fit_results['mu'])
+    cv.append(comb.fit_results.mu)
     lower_bound.append(comb.confidence_interval()[0])
     upper_bound.append(comb.confidence_interval()[1])
     ci.append(comb.confidence_interval()[2])
@@ -610,7 +610,7 @@ for eps in eps_grid:
     base_info = deepcopy(base_info)
     base_info['syst']['sys1']['error-on-error']['value'] = float(eps)
     comb.update_data(base_info)
-    cv.append(comb.fit_results['mu'])
+    cv.append(comb.fit_results.mu)
     lower_bound.append(comb.confidence_interval()[0])
     upper_bound.append(comb.confidence_interval()[1])
     ci.append(comb.confidence_interval()[2])
@@ -684,7 +684,7 @@ for eps in eps_grid:
     base_info = deepcopy(base_info)
     base_info['syst']['sys1']['error-on-error']['value'] = float(eps)
     comb.update_data(base_info)
-    cv.append(comb.fit_results['mu'])  
+    cv.append(comb.fit_results.mu)  
     lower_bound.append(comb.confidence_interval()[0])
     upper_bound.append(comb.confidence_interval()[1])
     ci.append(comb.confidence_interval()[2])
