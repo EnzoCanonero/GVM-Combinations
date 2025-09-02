@@ -1,5 +1,6 @@
 # Main GVM combination API (fitting, intervals, goodness-of-fit).
 import os
+from scipy.stats import norm
 import numpy as np
 import yaml
 import warnings
@@ -307,7 +308,7 @@ class GVMCombination:
         nll_mu = res_mu.nll if isinstance(res_mu, FitResult) else res_mu['nll']
         return 2 * (nll_mu - nll_best)
 
-    def confidence_interval(self, step=0.01, tol=0.001, max_iter=1000):
+    def confidence_interval(self, step=0.01, tol=0.001, max_iter=1000, cl_val=0.683):
         """Compute a Bartlett-corrected profile-likelihood CI for mu.
 
         Parameters
@@ -320,12 +321,14 @@ class GVMCombination:
         max_iter : int, optional
             Maximum number of scan/refinement iterations in each direction to
             guard against non-convergence.
+        cl_val : float, optional
 
         Returns
         -------
         tuple of float
             (lower, upper, half_width)
         """
+        thr = b_profile * (norm.ppf(0.5 * (1.0 + cl_val)) ** 2)
         b_profile, _ = _bartlett_correction_fn(self)
         fit = self.fit_results or self.minimize()
         mu_hat = fit.mu if isinstance(fit, FitResult) else fit['mu']
@@ -335,19 +338,19 @@ class GVMCombination:
         down = mu_hat
         q_down = q0
         it = 0
-        while q_up <= b_profile and it < max_iter:
+        while q_up <= thr and it < max_iter:
             up += step
             q_up = self.likelihood_ratio(up)
             it += 1
         it = 0
-        while q_down <= b_profile and it < max_iter:
+        while q_down <= thr and it < max_iter:
             down -= step
             q_down = self.likelihood_ratio(down)
             it += 1
         step /= 2
         it = 0
-        while abs(q_up - b_profile) > tol and it < max_iter:
-            if q_up > b_profile:
+        while abs(q_up - thr) > tol and it < max_iter:
+            if q_up > thr:
                 up -= step
             else:
                 up += step
@@ -356,8 +359,8 @@ class GVMCombination:
             it += 1
         step = step if step > 0 else 0.001
         it = 0
-        while abs(q_down - b_profile) > tol and it < max_iter:
-            if q_down > b_profile:
+        while abs(q_down - thr) > tol and it < max_iter:
+            if q_down > thr:
                 down += step
             else:
                 down -= step
