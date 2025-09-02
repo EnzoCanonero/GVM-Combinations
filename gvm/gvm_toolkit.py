@@ -24,6 +24,8 @@ class GVMCombination:
         self.C_inv = {}
         self.Gamma = {}
         self.fit_results = None
+        # Automatically prepare likelihood matrices on construction
+        self.prepare()
         
     # from_yaml removed. Build input via gvm.config and pass to constructor.
     
