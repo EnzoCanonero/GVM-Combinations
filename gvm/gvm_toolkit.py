@@ -3,6 +3,7 @@ import numpy as np
 import yaml
 import warnings
 from .fit_results import FitResult
+from .likelihood import nll as _nll_fn, bartlett_correction as _bartlett_correction_fn
 from .minuit_wrapper import minimize as _minimize
 from .config import (
     validate_input_data,
@@ -23,33 +24,14 @@ class GVMCombination:
         self.V_inv = None
         self.C_inv = {}
         self.Gamma = {}
-        self.fit_results = None
-        # Automatically prepare likelihood matrices on construction
         self.prepare()
         
-    # from_yaml removed. Build input via gvm.config and pass to constructor.
+        self.fit_results = None
     
-    def prepare(self):
-        """Validate inputs and compute internal matrices for likelihood.
-        This must be called before calling likelihood or fitting methods
-        if the instance was not prepared yet.
-        """
-        validate_input_data(self._input_data)
-        self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
-        return self
-    
-    def fit(self, fixed=None, update=True):
-        """Run the minimisation and store the result in ``self.fit_results``.
-        This is a convenience wrapper around ``minimize`` that ensures the
-        instance is prepared before fitting.
-        """
-        if self.V_inv is None or not self.Gamma:
-            self.prepare()
-        return self.minimize(fixed=fixed, update=update)
-
     # ------------------------------------------------------------------
     # Input-data accessors
     # ------------------------------------------------------------------
+    
     @property
     def name(self):
         return self._input_data.name
@@ -118,10 +100,20 @@ class GVMCombination:
         if refit:
             self.fit_results = self.minimize()
         return self
+        
+    # ------------------------------------------------------------------
+    # Prepare Likelihood Matrices
+    # ------------------------------------------------------------------
     
-    # ------------------------------------------------------------------
-    # Build Likelihood Matrices
-    # ------------------------------------------------------------------
+    def prepare(self):
+        """Validate inputs and compute internal matrices for likelihood.
+        This must be called before calling likelihood or fitting methods
+        if the instance was not prepared yet.
+        """
+        validate_input_data(self._input_data)
+        self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
+        return self
+    
     def _reduce_corr(self, rho, src_name=None):
         n = rho.shape[0]
         groups = []
@@ -164,7 +156,6 @@ class GVMCombination:
                     f'adding {offset:.4e} to diagonal for regularisation.')
         return reduced, Gamma
 
-    # ------------------------------------------------------------------
     def _compute_likelihood_matrices(self):
         n = len(self.measurements)
         V_stat = self.V_stat
@@ -194,40 +185,6 @@ class GVMCombination:
                 Gamma_factors[src] = Gamma
         return V_inv, C_inv, Gamma_factors
     
-    # ------------------------------------------------------------------
-    # Config End
-    # ------------------------------------------------------------------
-    def nll(self, mu, *thetas):
-        """Negative log-likelihood."""
-        thetas = list(thetas)
-
-        adj = np.sum([self.Gamma[k] @ thetas[i]
-                      for i, k in enumerate(self.Gamma)], axis=0) if thetas else 0
-        y_vals = np.fromiter(self.measurements.values(), dtype=float)
-        v = y_vals - mu - adj
-        chi2_y = v @ self.V_inv @ v
-
-        chi2_u = 0.0
-        keys = list(self.Gamma.keys())
-        for i, k in enumerate(keys):
-            theta = np.asarray(thetas[i])
-            eps = self.uncertain_systematics[k]
-            if self.eoe_type.get(k, 'dependent') == 'dependent':
-                Cinv = self.C_inv[k]
-                N_s = len(theta)
-                if eps > 0:
-                    chi2_u += (N_s + 1.0 / (2.0 * eps ** 2)) * np.log(1. + 2. * eps ** 2 * theta @ Cinv @ theta)
-                else:
-                    chi2_u += theta @ Cinv @ theta
-            else:
-                eps = np.asarray(eps)
-                mask = eps > 0
-                if np.any(mask):
-                    chi2_u += np.sum((1 + 1.0 / (2.0 * eps[mask] ** 2)) * np.log(1. + 2. * eps[mask] ** 2 * theta[mask] ** 2))
-                if np.any(~mask):
-                    chi2_u += np.sum(theta[~mask] ** 2)
-        return 0.5 * (chi2_y + chi2_u)
-
     # ------------------------------------------------------------------
     def minimize(self, fixed=None, update=True):
         """Minimise the negative log-likelihood.
@@ -276,7 +233,7 @@ class GVMCombination:
                 npar = self.Gamma[key].shape[1]
                 thetas.append(np.array(theta_flat[i:i+npar]))
                 i += npar
-            nll_val = self.nll(mu, *thetas)
+            nll_val = _nll_fn(self, mu, *thetas)
             result = FitResult(
                 mu=mu,
                 thetas=np.array(theta_flat),
@@ -300,7 +257,7 @@ class GVMCombination:
                 npar = self.Gamma[key].shape[1]
                 thetas.append(np.array(theta_flat[i:i+npar]))
                 i += npar
-            return self.nll(mu, *thetas)
+            return _nll_fn(self, mu, *thetas)
 
         m = _minimize(f, x0, free_names, errordef=0.5)
 
@@ -319,125 +276,28 @@ class GVMCombination:
         if update:
             self.fit_results = result
         return result
+    
+    def fit(self, fixed=None, update=True):
+        """Run the minimisation and store the result in ``self.fit_results``.
+        This is a convenience wrapper around ``minimize`` that ensures the
+        instance is prepared before fitting.
+        """
+        if self.V_inv is None or not self.Gamma:
+            self.prepare()
+        return self.minimize(fixed=fixed, update=update)
 
     # ------------------------------------------------------------------
     def likelihood_ratio(self, mu):
         best = self.fit_results or self.minimize()
-        nll_best = best.nll if isinstance(best, FitResult) else self.nll(best['mu'], *best['thetas'])
+        nll_best = best.nll if isinstance(best, FitResult) else _nll_fn(self, best['mu'], *best['thetas'])
         res_mu = self.minimize(fixed={'mu': mu}, update=False)
         nll_mu = res_mu.nll if isinstance(res_mu, FitResult) else res_mu['nll']
         return 2 * (nll_mu - nll_best)
 
     # ------------------------------------------------------------------
-    def compute_FIM(self, S):
-        keys = list(self.C_inv.keys())
-        sizes = [self.C_inv[k].shape[0] for k in keys]
-
-        tot = sum(sizes)
-        F = np.zeros((1 + tot, 1 + tot))
-        F[0, 0] = np.sum(self.V_inv)
-        start_idx = np.cumsum([0] + sizes[:-1])
-        idxs = [np.arange(sz) + s + 1 for sz, s in zip(sizes, start_idx)]
-
-        V_G = {k: self.V_inv @ self.Gamma[k] for k in keys}
-        for i, k in enumerate(keys):
-            idx = idxs[i]
-            F[0, idx] = F[idx, 0] = V_G[k].sum(axis=0)
-
-        for i, ks in enumerate(keys):
-            idx_s = idxs[i]
-            Gs = self.Gamma[ks]
-            Cinv_s = self.C_inv[ks]
-            S_s = S[i]
-            for j, kp in enumerate(keys):
-                idx_p = idxs[j]
-                GsVinGp = Gs.T @ V_G[kp]
-                if ks == kp:
-                    if self.eoe_type.get(kp, 'dependent') == 'dependent':
-                        F[np.ix_(idx_s, idx_p)] = GsVinGp + (1.0 / S_s) * Cinv_s
-                    else:
-                        F[np.ix_(idx_s, idx_p)] = (
-                            GsVinGp + Cinv_s * (1.0 / S_s)[:, None]
-                        )
-                else:
-                    F[np.ix_(idx_s, idx_p)] = GsVinGp
-        return F
-
-    # ------------------------------------------------------------------
-    def bartlett_correction(self):
-        """Return Bartlett corrections for the profile likelihood ratio and
-        goodness-of-fit statistics.
-
-        Returns
-        -------
-        tuple of float
-            ``(b_profile, b_chi2)`` where ``b_profile`` rescales the likelihood
-            ratio used for confidence intervals and ``b_chi2`` rescales the
-            goodness-of-fit statistic.
-        """
-
-        if len(self.C_inv) == 0:
-            # No nuisance parameters: both corrections reduce to their
-            # asymptotic values.  ``self.measurements`` holds the measured values.
-            return 1.0, float(len(self.measurements) - 1)
-
-        thetas = self.fit_results.thetas if isinstance(self.fit_results, FitResult) else self.fit_results['thetas']
-        keys = list(self.C_inv.keys())
-        sizes = [self.C_inv[k].shape[0] for k in keys]
-        idx = np.cumsum([0] + sizes)
-        thetas = [np.asarray(thetas[idx[i]:idx[i+1]]) for i in range(len(keys))]
-        eps = [np.asarray(self.uncertain_systematics[k], dtype=float) for k in keys]
-        C_inv_list = [self.C_inv[k] for k in keys]
-        N_s = sizes
-        S = []
-        for th, k, C, e, N in zip(thetas, keys, C_inv_list, eps, N_s):
-            if self.eoe_type.get(k, 'dependent') == 'dependent':
-                S.append((1 + 2 * e ** 2 * th @ C @ th) / (1 + 2 * e ** 2 * N))
-            else:
-                S.append((1 + 2 * e ** 2 * th ** 2) / (1 + 2 * e ** 2))
-        F = self.compute_FIM(S)
-        W_full = np.linalg.inv(F)[1:, 1:]
-        W_theta = np.linalg.inv(F[1:, 1:])
-        start_idx = idx[:-1]
-        b_lik = b_theta = b_chi2 = 0.0
-        for s, (th, Cinv, e, N, S_s) in enumerate(zip(thetas, C_inv_list, eps, N_s, S)):
-            si = start_idx[s]
-            ei = si + N
-            W_s = W_full[si:ei, si:ei]
-            Wt_s = W_theta[si:ei, si:ei]
-            if self.eoe_type.get(keys[s], 'dependent') == 'dependent':
-                trWC = np.trace(W_s @ Cinv)
-                trWCWC = np.trace(W_s @ Cinv @ W_s @ Cinv)
-                trW_t_C = np.trace(Wt_s @ Cinv)
-                trW_t_CWC = np.trace(Wt_s @ Cinv @ Wt_s @ Cinv)
-                b_lik += (
-                    (4 * e ** 2 / S_s) * trWC
-                    - (2 * e ** 2 / S_s ** 2) * trWCWC
-                    + (e ** 2 / S_s ** 2) * (trWC ** 2)
-                )
-                b_theta += (
-                    (4 * e ** 2 / S_s) * trW_t_C
-                    - (2 * e ** 2 / S_s ** 2) * trW_t_CWC
-                    + (e ** 2 / S_s ** 2) * (trW_t_C ** 2)
-                )
-                b_chi2 += (2 * N + N ** 2) * e ** 2
-            else:
-                diag_W = np.diag(W_s)
-                diag_W_sq = diag_W ** 2
-                diag_Wt = np.diag(Wt_s)
-                diag_Wt_sq = diag_Wt ** 2
-                e2 = e ** 2
-                b_lik += np.sum((4 * e2 / S_s) * diag_W - (e2 / S_s ** 2) * diag_W_sq)
-                b_theta += np.sum((4 * e2 / S_s) * diag_Wt - (e2 / S_s ** 2) * diag_Wt_sq)
-                b_chi2 += np.sum(3 * e2)
-                
-        b_profile = 1 + b_lik - b_theta
-        b_chi2 = float(len(self.measurements) - 1) + b_chi2 - b_lik
-        return b_profile, b_chi2
-
     # ------------------------------------------------------------------
     def confidence_interval(self, step=0.01, tol=0.001, max_iter=1000):
-        b_profile, _ = self.bartlett_correction()
+        b_profile, _ = _bartlett_correction_fn(self)
         fit = self.fit_results or self.minimize()
         mu_hat = fit.mu if isinstance(fit, FitResult) else fit['mu']
         q0 = self.likelihood_ratio(mu_hat)
@@ -499,8 +359,8 @@ class GVMCombination:
         # where no nuisance parameters are present.
         thetas = np.asarray(thetas)
         if thetas.size == 0:
-            q = 2 * self.nll(mu)
-            _, b_chi2 = self.bartlett_correction()
+            q = 2 * _nll_fn(self, mu)
+            _, b_chi2 = _bartlett_correction_fn(self)
             return q * (len(self.measurements) - 1) / b_chi2
         if not isinstance(thetas[0], (list, np.ndarray)):
             keys = list(self.C_inv.keys())
@@ -509,6 +369,6 @@ class GVMCombination:
             thetas = [np.asarray(thetas[idx[i]:idx[i+1]])
                       for i in range(len(keys))]
 
-        q = 2 * self.nll(mu, *thetas)
-        _, b_chi2 = self.bartlett_correction()
+        q = 2 * _nll_fn(self, mu, *thetas)
+        _, b_chi2 = _bartlett_correction_fn(self)
         return q * (len(self.measurements) - 1) / b_chi2
