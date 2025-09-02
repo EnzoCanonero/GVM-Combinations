@@ -6,8 +6,7 @@ from .fit_results import FitResult
 from .minuit_wrapper import minimize as _minimize
 from .config import (
     validate_input_data,
-    input_data_to_cfg,
-    apply_update,
+    input_data as InputData,
 )
 
 class GVMCombination:
@@ -56,15 +55,52 @@ class GVMCombination:
         return self.minimize(fixed=fixed, update=update)
 
     # ------------------------------------------------------------------
-    # Config
+    # Input-data accessors
     # ------------------------------------------------------------------
+    def get_input_data(self, copy: bool = False):
+        """Return the current input_data object.
+
+        If ``copy`` is True, return a shallow copy with arrays copied to
+        avoid in-place external mutations affecting the combination.
+        """
+        if not copy:
+            return self._state
+        s = self._state
+        from dataclasses import replace
+        return replace(
+            s,
+            measurements=dict(s.measurements),
+            V_stat=np.array(s.V_stat, copy=True),
+            syst={k: np.array(v, copy=True) for k, v in s.syst.items()},
+            corr={k: np.array(v, copy=True) for k, v in s.corr.items()},
+            eoe_type=dict(s.eoe_type),
+            uncertain_systematics={k: (np.array(v, copy=True) if isinstance(v, np.ndarray) else v)
+                                   for k, v in s.uncertain_systematics.items()},
+        )
+
+    def set_input_data(self, data, refit: bool = True):
+        """Replace the combination input with a new input_data object.
+
+        Validates, rebuilds internal matrices, and optionally refits.
+        """
+        validate_input_data(data)
+        self._state = data
+        self.name = data.name
+        self.n_meas = data.n_meas
+        self.n_syst = data.n_syst
+        self.measurements = data.measurements
+        self.V_stat = data.V_stat
+        self.syst = data.syst
+        self.corr = data.corr
+        self.eoe_type = data.eoe_type
+        self.uncertain_systematics = data.uncertain_systematics
+        self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
+        if refit:
+            self.fit_results = self.minimize()
+        return self
     
-
     # ------------------------------------------------------------------
-    def _validate_combination(self):
-        """Delegate validation to config module."""
-        return validate_input_data(self._state)
-
+    # Build Likelihood Matrices
     # ------------------------------------------------------------------
     def _reduce_corr(self, rho, src_name=None):
         n = rho.shape[0]
@@ -263,37 +299,6 @@ class GVMCombination:
         if update:
             self.fit_results = result
         return result
-
-    # ------------------------------------------------------------------
-    def input_data(self):
-        """Return a dictionary summarising the current combination input."""
-        return input_data_to_cfg(self._state)
-
-    # ------------------------------------------------------------------
-    def update_data(self, info):
-        """Update combination input from a summary dictionary.
-
-        ``info`` should follow the same structure as returned by
-        :meth:`input_data`.  Only the provided values are updated.
-        """
-
-        # Delegate updates to config helpers
-        changed = apply_update(self._state, info)
-
-        # Sync local references (arrays may be replaced)
-        self.measurements = self._state.measurements
-        self.V_stat = self._state.V_stat
-        self.syst = self._state.syst
-        self.corr = self._state.corr
-        self.eoe_type = self._state.eoe_type
-        self.uncertain_systematics = self._state.uncertain_systematics
-
-        validate_input_data(self._state)
-
-        # Recompute matrices and refit after updates
-        if changed:
-            self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
-            self.fit_results = self.minimize()
 
     # ------------------------------------------------------------------
     def likelihood_ratio(self, mu):

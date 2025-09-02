@@ -4,13 +4,6 @@ from dataclasses import dataclass
 import numpy as np
 import yaml
 
-
-#####
-# Legacy loader removed. Use load_input_data(path) to construct input data
-# directly from YAML path.
-#####
-
-
 @dataclass
 class input_data:
     name: str
@@ -25,37 +18,121 @@ class input_data:
     uncertain_systematics: dict
 
 
-def build_input_data(cfg: dict) -> input_data:
-    glob = cfg['global']
-    name = glob['name']
-    n_meas = glob['n_meas']
-    n_syst = glob['n_syst']
+def build_input_data(path: str) -> input_data:
+    """Parse YAML at ``path`` and return populated input_data.
 
-    measurements = {m: float(v) for m, v in cfg['data']['measurements'].items()}
-    labels = list(measurements.keys())
-    V_stat = np.asarray(cfg['data']['V_stat'], dtype=float)
+    No intermediate cfg dict is exposed; everything is built directly.
+    """
+    with open(path, 'r') as f:
+        data = yaml.safe_load(f)
 
-    syst = {
-        sname: np.array([cfg['syst'][sname]['values'][m] for m in measurements], dtype=float)
-        for sname in cfg['syst']
-    }
-    corr = {s: np.asarray(cfg['syst'][s]['corr'], dtype=float) for s in cfg['syst']}
-    eoe_type = {s: cfg['syst'][s]['error-on-error']['type'] for s in cfg['syst']}
+    try:
+        glob = data['global']
+        corr_dir = glob.get('corr_dir', '')
+        name = glob['name']
+        n_meas = int(glob['n_meas'])
+        n_syst = int(glob['n_syst'])
+    except KeyError as exc:
+        raise KeyError('Global configuration must define "name", "n_meas" and "n_syst"') from exc
 
+    try:
+        combo = data['data']
+        meas_entries = combo['measurements']
+    except KeyError as exc:
+        raise KeyError('Data configuration must define "measurements"') from exc
+
+    labels, measurements, stat_err = [], {}, []
+    for m in meas_entries:
+        try:
+            label = m['label']
+        except KeyError as exc:
+            raise KeyError('Each measurement requires a "label"') from exc
+        try:
+            cent = float(m['central'])
+        except KeyError as exc:
+            raise KeyError(f'Measurement "{label}" must define "central"') from exc
+        labels.append(label)
+        measurements[label] = cent
+        if 'stat_error' in m:
+            stat_err.append(float(m['stat_error']))
+
+    stat_cov_path = combo.get('stat_cov_path')
+    if stat_cov_path:
+        stat_cov_path = stat_cov_path.replace('${global.corr_dir}', corr_dir)
+        if not os.path.isabs(stat_cov_path):
+            stat_cov_path = os.path.join(corr_dir, stat_cov_path)
+        V_stat = np.loadtxt(stat_cov_path, dtype=float)
+    elif stat_err:
+        V_stat = np.diag(np.array(stat_err, dtype=float) ** 2)
+    else:
+        raise KeyError('Measurement stat errors or covariance required')
+
+    try:
+        syst_entries = data['syst']
+    except KeyError as exc:
+        raise KeyError('Configuration must define "syst" section') from exc
+
+    meas_map = {m: i for i, m in enumerate(labels)}
+    syst = {}
+    corr = {}
+    eoe_type = {}
     uncertain_systematics = {}
-    for s in cfg['syst']:
-        val = cfg['syst'][s]['error-on-error']['value']
-        if eoe_type.get(s, 'dependent') == 'independent':
-            eps = np.asarray(val, dtype=float)
-            sigma = syst[s]
+
+    for item in syst_entries:
+        sname = item['name']
+        try:
+            shift_vals = item['shift']['value']
+        except KeyError as exc:
+            raise KeyError(f'Systematic "{sname}" must define "shift.value"') from exc
+        shifts = [float(x) for x in shift_vals]
+
+        try:
+            corr_spec = item['shift']['correlation']
+        except KeyError as exc:
+            raise KeyError(f'Systematic "{sname}" must define "shift.correlation"') from exc
+        if corr_spec == 'diagonal':
+            corr_mat = np.eye(n_meas)
+        elif corr_spec == 'ones':
+            corr_mat = np.ones((n_meas, n_meas))
+        else:
+            path_corr = corr_spec.replace('${global.corr_dir}', corr_dir)
+            if not os.path.isabs(path_corr):
+                path_corr = os.path.join(corr_dir, path_corr)
+            corr_mat = np.loadtxt(path_corr, dtype=float)
+
+        eoe = item.get('error-on-error', {})
+        eps_val = eoe.get('value', 0.0)
+        eps_typ = eoe.get('type', 'dependent')
+        if eps_typ not in ('dependent', 'independent'):
+            raise ValueError(f'Systematic "{sname}" has unrecognised error-on-error type "{eps_typ}"')
+
+        if eps_typ == 'independent':
+            if isinstance(eps_val, (list, tuple, np.ndarray)):
+                eps_list = [float(x) for x in eps_val]
+            else:
+                eps_list = [float(eps_val)]
+            if len(eps_list) == 1:
+                eps_list *= n_meas
+            eps_val = eps_list
+        else:
+            eps_val = float(eps_val)
+
+        val_map = {lab: shifts[meas_map[lab]] for lab in labels}
+        syst[sname] = np.array([val_map[m] for m in labels], dtype=float)
+        corr[sname] = np.asarray(corr_mat, dtype=float)
+        eoe_type[sname] = eps_typ
+
+        if eps_typ == 'independent':
+            eps = np.asarray(eps_val, dtype=float)
+            sigma = syst[sname]
             mask = sigma != 0.0
             eps = eps[mask]
             if eps.size > 0 and np.any(eps != 0.0):
-                uncertain_systematics[s] = eps
+                uncertain_systematics[sname] = eps
         else:
-            eps = float(val)
-            if eps != 0.0:
-                uncertain_systematics[s] = eps
+            epsf = float(eps_val)
+            if epsf != 0.0:
+                uncertain_systematics[sname] = epsf
 
     return input_data(
         name=name,
@@ -118,232 +195,11 @@ def validate_input_data(state: input_data) -> None:
             if eps.shape[0] != expected:
                 raise ValueError(
                     f'Systematic {name} has independent error-on-error but epsilon has {eps.shape[0]} values')
-
-
-def load_input_data(path: str) -> input_data:
-    """Parse YAML at ``path`` and return populated input_data."""
-    with open(path, 'r') as f:
-        data = yaml.safe_load(f)
-
-    cfg = {}
-    try:
-        glob = data['global']
-        corr_dir = glob.get('corr_dir', '')
-        name = glob['name']
-        n_meas = int(glob['n_meas'])
-        n_syst = int(glob['n_syst'])
-    except KeyError as exc:
-        raise KeyError('Global configuration must define "name", "n_meas" and "n_syst"') from exc
-
-    cfg['global'] = {
-        'name': name,
-        'n_meas': n_meas,
-        'n_syst': n_syst,
-    }
-
-    try:
-        combo = data['data']
-        meas_entries = combo['measurements']
-    except KeyError as exc:
-        raise KeyError('Data configuration must define "measurements"') from exc
-
-    labels, central, stat_err = [], [], []
-    for m in meas_entries:
-        try:
-            label = m['label']
-        except KeyError as exc:
-            raise KeyError('Each measurement requires a "label"') from exc
-        try:
-            cent = m['central']
-        except KeyError as exc:
-            raise KeyError(f'Measurement "{label}" must define "central"') from exc
-        labels.append(label)
-        central.append(float(cent))
-        if 'stat_error' in m:
-            stat_err.append(float(m['stat_error']))
-
-    stat_cov_path = combo.get('stat_cov_path')
-    if stat_cov_path:
-        stat_cov_path = stat_cov_path.replace('${global.corr_dir}', corr_dir)
-        if not os.path.isabs(stat_cov_path):
-            stat_cov_path = os.path.join(corr_dir, stat_cov_path)
-        V_stat = np.loadtxt(stat_cov_path, dtype=float)
-    elif stat_err:
-        V_stat = np.diag(np.array(stat_err, dtype=float) ** 2)
-    else:
-        raise KeyError('Measurement stat errors or covariance required')
-
-    # Store measurements as {label: central}
-    meas_data = {lab: c for lab, c in zip(labels, central)}
-    cfg['data'] = {'measurements': meas_data, 'V_stat': V_stat}
-
-    try:
-        syst_entries = data['syst']
-    except KeyError as exc:
-        raise KeyError('Configuration must define "syst" section') from exc
-
-    meas_map = {m: i for i, m in enumerate(labels)}
-    syst_dict = {}
-    for item in syst_entries:
-        name = item['name']
-
-        try:
-            shift = item['shift']
-            shift_vals = shift['value']
-        except KeyError as exc:
-            raise KeyError(f'Systematic "{name}" must define "shift.value"') from exc
-        shifts = [float(x) for x in shift_vals]
-
-        try:
-            corr_spec = shift['correlation']
-        except KeyError as exc:
-            raise KeyError(f'Systematic "{name}" must define "shift.correlation"') from exc
-        if corr_spec == 'diagonal':
-            corr = np.eye(n_meas)
-        elif corr_spec == 'ones':
-            corr = np.ones((n_meas, n_meas))
-        else:
-            path_corr = corr_spec.replace('${global.corr_dir}', corr_dir)
-            if not os.path.isabs(path_corr):
-                path_corr = os.path.join(corr_dir, path_corr)
-            corr = np.loadtxt(path_corr, dtype=float)
-
-        eoe = item.get('error-on-error', {})
-        eps_val = eoe.get('value', 0.0)
-        eps_type = eoe.get('type', 'dependent')
-        if eps_type not in ('dependent', 'independent'):
-            raise ValueError(f'Systematic "{name}" has unrecognised error-on-error type "{eps_type}"')
-        if eps_type == 'independent':
-            if isinstance(eps_val, (list, tuple, np.ndarray)):
-                eps_list = [float(x) for x in eps_val]
-            else:
-                eps_list = [float(eps_val)]
-            if len(eps_list) == 1:
-                eps_list *= n_meas
-            eps_val = eps_list
-        else:
-            eps_val = float(eps_val)
-
-        val_map = {lab: shifts[meas_map[lab]] for lab in labels}
-        syst_dict[name] = {
-            'values': val_map,
-            'error-on-error': {'value': eps_val, 'type': eps_type},
-            'corr': corr,
-        }
-
-    cfg['syst'] = syst_dict
-    # Build and return input_data
-    return build_input_data(cfg)
-
-
-def input_data_to_cfg(state: input_data) -> dict:
-    meas = list(state.labels)
-    cfg = {
-        'global': {
-            'name': state.name,
-            'n_meas': state.n_meas,
-            'n_syst': state.n_syst,
-        },
-        'data': {
-            'measurements': {
-                m: {
-                    'central': float(state.measurements[m]),
-                    'stat': float(np.sqrt(state.V_stat[i, i]))
-                }
-                for i, m in enumerate(meas)
-            },
-            'V_stat': state.V_stat.copy(),
-        },
-        'syst': {
-            sname: {
-                'shift': {
-                    'value': {
-                        m: float(state.syst[sname][i])
-                        for i, m in enumerate(meas)
-                    },
-                    'correlation': state.corr[sname].copy(),
-                },
-                'error-on-error': {
-                    'value': (lambda v: v.tolist() if isinstance(v, np.ndarray) else v)
-                             (state.uncertain_systematics.get(sname, 0.0)),
-                    'type': state.eoe_type[sname],
-                },
-            }
-            for sname in state.syst
-        },
-    }
-    return cfg
-
-
-def apply_update(state: input_data, info: dict) -> bool:
-    changed = False
-    idx = {m: i for i, m in enumerate(state.measurements)}
-
-    data = info.get('data', {})
-    meas_info = data.get('measurements', {})
-    for m, vals in meas_info.items():
-        if 'central' in vals:
-            state.measurements[m] = float(vals['central'])
-            changed = True
-        if 'stat' in vals:
-            state.V_stat[idx[m], idx[m]] = float(vals['stat']) ** 2
-            changed = True
-
-    if 'V_stat' in data:
-        V_stat = np.asarray(data['V_stat'], dtype=float)
-        state.V_stat = V_stat
-        changed = True
-
-    syst_info = info.get('syst', {})
-    for sname, entry in syst_info.items():
-        if sname not in state.syst:
-            continue
-
-        shift = entry.get('shift')
-        if shift:
-            if 'value' in shift:
-                for m, val in shift['value'].items():
-                    state.syst[sname][idx[m]] = float(val)
-                    changed = True
-            if 'correlation' in shift:
-                mat = np.asarray(shift['correlation'], dtype=float)
-                state.corr[sname] = mat
-                changed = True
-
-        if 'error-on-error' in entry:
-            eoe = entry['error-on-error']
-            if 'type' in eoe:
-                if eoe['type'] not in ('dependent', 'independent'):
+        elif typ == 'dependent':
+            # If provided, epsilon must be a single scalar value (not a list/vector)
+            if name in state.uncertain_systematics:
+                eps_val = state.uncertain_systematics[name]
+                # Accept numpy scalars and Python numbers; reject lists/arrays/tuples
+                if isinstance(eps_val, (list, tuple, np.ndarray)):
                     raise ValueError(
-                        f'Systematic "{sname}" has unrecognised error-on-error type "{eoe["type"]}"'
-                    )
-                state.eoe_type[sname] = eoe['type']
-                changed = True
-            if 'value' in eoe:
-                val = eoe['value']
-                if state.eoe_type.get(sname, 'dependent') == 'independent':
-                    if isinstance(val, (list, tuple, np.ndarray)):
-                        eps = np.asarray(val, dtype=float)
-                        if eps.size == 1:
-                            eps = np.repeat(eps, state.n_meas)
-                        elif eps.size != state.n_meas:
-                            raise ValueError(
-                                f'Systematic "{sname}" epsilon has {eps.size} values, expected {state.n_meas}')
-                    else:
-                        eps = np.repeat(float(val), state.n_meas)
-                    mask = state.syst[sname] != 0.0
-                    eps = eps[mask]
-                    if eps.size == 0 or np.all(eps == 0):
-                        state.uncertain_systematics.pop(sname, None)
-                    else:
-                        state.uncertain_systematics[sname] = eps
-                    changed = True
-                else:
-                    e = float(val)
-                    if e == 0:
-                        state.uncertain_systematics.pop(sname, None)
-                    else:
-                        state.uncertain_systematics[sname] = e
-                    changed = True
-
-    return changed
+                        f'Systematic {name} has dependent error-on-error but epsilon is not a single number')
