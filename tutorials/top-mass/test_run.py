@@ -1,7 +1,7 @@
 import sys, os
 base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, base)
-from gvm.gvm_toolkit import GVMCombination
+from gvm.gmv import GVMCombination
 from gvm.config import build_input_data
 
 here = os.path.dirname(__file__)
