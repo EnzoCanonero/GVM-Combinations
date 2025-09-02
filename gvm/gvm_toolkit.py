@@ -14,19 +14,19 @@ class GVMCombination:
 
     def __init__(self, data):
         # Accept pre-built input_data (from gvm.config)
-        state = data
-        validate_input_data(state)
+        input_data = data
+        validate_input_data(input_data)
 
-        self._state = state
-        self.name = state.name
-        self.n_meas = state.n_meas
-        self.n_syst = state.n_syst
-        self.measurements = state.measurements
-        self.V_stat = state.V_stat
-        self.syst = state.syst
-        self.corr = state.corr
-        self.eoe_type = state.eoe_type
-        self.uncertain_systematics = state.uncertain_systematics
+        self._input_data = input_data
+        self.name = input_data.name
+        self.n_meas = input_data.n_meas
+        self.n_syst = input_data.n_syst
+        self.measurements = input_data.measurements
+        self.V_stat = input_data.V_stat
+        self.syst = input_data.syst
+        self.corr = input_data.corr
+        self.eoe_type = input_data.eoe_type
+        self.uncertain_systematics = input_data.uncertain_systematics
 
         # prepared empty state
         self.V_inv = None
@@ -41,7 +41,7 @@ class GVMCombination:
         This must be called before calling likelihood or fitting methods
         if the instance was not prepared yet.
         """
-        validate_input_data(self._state)
+        validate_input_data(self._input_data)
         self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
         return self
     
@@ -64,8 +64,8 @@ class GVMCombination:
         avoid in-place external mutations affecting the combination.
         """
         if not copy:
-            return self._state
-        s = self._state
+            return self._input_data
+        s = self._input_data
         from dataclasses import replace
         return replace(
             s,
@@ -84,7 +84,7 @@ class GVMCombination:
         Validates, rebuilds internal matrices, and optionally refits.
         """
         validate_input_data(data)
-        self._state = data
+        self._input_data = data
         self.name = data.name
         self.n_meas = data.n_meas
         self.n_syst = data.n_syst
