@@ -115,6 +115,10 @@ class GVMCombination:
         return self
     
     def _reduce_corr(self, rho, src_name=None):
+        """Reduce correlation by grouping fully correlated/anticorrelated entries (±1)
+        redundant entries are effectively discarded as they can be represented by 
+        one NP. 
+        """
         n = rho.shape[0]
         groups = []
         visited = set()
@@ -157,6 +161,10 @@ class GVMCombination:
         return reduced, Gamma
 
     def _compute_likelihood_matrices(self):
+        """Build likelihood matrices and discard NP columns associated with null shifts.
+        After scaling by shifts, all-zero Gamma columns are removed, keeping only
+        active nuisance parameters.
+        """
         n = len(self.measurements)
         V_stat = self.V_stat
         V_syst = np.zeros((n, n))
@@ -285,18 +293,39 @@ class GVMCombination:
         if self.V_inv is None or not self.Gamma:
             self.prepare()
         return self.minimize(fixed=fixed, update=update)
-
+    
     # ------------------------------------------------------------------
+    # Confidence interval
+    # ------------------------------------------------------------------
+
     def likelihood_ratio(self, mu):
+        """Profile likelihood-ratio test statistic
+        """
         best = self.fit_results or self.minimize()
         nll_best = best.nll if isinstance(best, FitResult) else _nll_fn(self, best['mu'], *best['thetas'])
         res_mu = self.minimize(fixed={'mu': mu}, update=False)
         nll_mu = res_mu.nll if isinstance(res_mu, FitResult) else res_mu['nll']
         return 2 * (nll_mu - nll_best)
 
-    # ------------------------------------------------------------------
-    # ------------------------------------------------------------------
     def confidence_interval(self, step=0.01, tol=0.001, max_iter=1000):
+        """Compute a Bartlett-corrected profile-likelihood CI for mu.
+
+        Parameters
+        ----------
+        step : float, optional
+            Initial scan step size used to move up/down from the MLE (mu_hat)
+            when bracketing the interval; halved during the bisection phase.
+        tol : float, optional
+            Convergence tolerance for the refinement step on |q(mu) - b_profile|.
+        max_iter : int, optional
+            Maximum number of scan/refinement iterations in each direction to
+            guard against non-convergence.
+
+        Returns
+        -------
+        tuple of float
+            (lower, upper, half_width)
+        """
         b_profile, _ = _bartlett_correction_fn(self)
         fit = self.fit_results or self.minimize()
         mu_hat = fit.mu if isinstance(fit, FitResult) else fit['mu']
@@ -338,25 +367,16 @@ class GVMCombination:
         return down, up, 0.5*(up - down)
     
     # ------------------------------------------------------------------
-    def goodness_of_fit(self, mu=None, thetas=None):
-        """Return the goodness-of-fit ``-2 * nll``.
-
-        Parameters
-        ----------
-        mu : float, optional
-            Mean parameter.  If ``None`` use the fitted value.
-        thetas : array-like, optional
-            Nuisance parameters.  If ``None`` use the fitted values.
+    # Goodness of fit
+    # ------------------------------------------------------------------
+    def goodness_of_fit(self):
+        """Return GOF at the fitted parameters (-2 * NLL with Bartlett correction).
         """
         fit = self.fit_results if self.fit_results else self.minimize()
-        if mu is None:
-            mu = fit.mu if isinstance(fit, FitResult) else fit['mu']
-        if thetas is None:
-            thetas = fit.thetas if isinstance(fit, FitResult) else fit['thetas']
+        mu = fit.mu if isinstance(fit, FitResult) else fit['mu']
+        thetas = fit.thetas if isinstance(fit, FitResult) else fit['thetas']
 
-        # ``fit['thetas']`` is stored as a flat array.  Split it into one
-        # array per systematic before calling ``nll``.  Handle the case
-        # where no nuisance parameters are present.
+        # ``fit['thetas']`` is stored as a flat array. Split into per-syst arrays.
         thetas = np.asarray(thetas)
         if thetas.size == 0:
             q = 2 * _nll_fn(self, mu)

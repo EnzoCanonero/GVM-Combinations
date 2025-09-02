@@ -19,7 +19,7 @@ gvm_root = os.path.abspath(os.path.join(script_dir, "../../"))
 if gvm_root not in sys.path:
     sys.path.insert(0, gvm_root)
 
-from gvm.gvm_toolkit import GVMCombination
+from gvm.gmv import GVMCombination
 from gvm.config import build_input_data
 ```
 
