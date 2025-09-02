@@ -208,5 +208,5 @@ plt.show()
 
 ![png](output/central_values_fict.png)
 
-![png](output/confidence_intervals.png)
+![png](output/confidence_intervals_fict.png)
 
