@@ -18,15 +18,6 @@ class GVMCombination:
         validate_input_data(input_data)
 
         self._input_data = input_data
-        self.name = input_data.name
-        self.n_meas = input_data.n_meas
-        self.n_syst = input_data.n_syst
-        self.measurements = input_data.measurements
-        self.V_stat = input_data.V_stat
-        self.syst = input_data.syst
-        self.corr = input_data.corr
-        self.eoe_type = input_data.eoe_type
-        self.uncertain_systematics = input_data.uncertain_systematics
 
         # prepared empty state
         self.V_inv = None
@@ -57,6 +48,42 @@ class GVMCombination:
     # ------------------------------------------------------------------
     # Input-data accessors
     # ------------------------------------------------------------------
+    @property
+    def name(self):
+        return self._input_data.name
+
+    @property
+    def n_meas(self):
+        return self._input_data.n_meas
+
+    @property
+    def n_syst(self):
+        return self._input_data.n_syst
+
+    @property
+    def measurements(self):
+        return self._input_data.measurements
+
+    @property
+    def V_stat(self):
+        return self._input_data.V_stat
+
+    @property
+    def syst(self):
+        return self._input_data.syst
+
+    @property
+    def corr(self):
+        return self._input_data.corr
+
+    @property
+    def eoe_type(self):
+        return self._input_data.eoe_type
+
+    @property
+    def uncertain_systematics(self):
+        return self._input_data.uncertain_systematics
+
     def get_input_data(self, copy: bool = False):
         """Return the current input_data object.
 
@@ -85,15 +112,6 @@ class GVMCombination:
         """
         validate_input_data(data)
         self._input_data = data
-        self.name = data.name
-        self.n_meas = data.n_meas
-        self.n_syst = data.n_syst
-        self.measurements = data.measurements
-        self.V_stat = data.V_stat
-        self.syst = data.syst
-        self.corr = data.corr
-        self.eoe_type = data.eoe_type
-        self.uncertain_systematics = data.uncertain_systematics
         self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
         if refit:
             self.fit_results = self.minimize()
