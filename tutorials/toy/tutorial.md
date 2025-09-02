@@ -20,7 +20,7 @@ if gvm_root not in sys.path:
     sys.path.insert(0, gvm_root)
 
 from gvm.gvm_toolkit import GVMCombination
-from gvm.config import load_input_data
+from gvm.config import build_input_data
 ```
 
 # No errors-on-errors
@@ -68,7 +68,7 @@ The `diagonal` option corresponds to:
 ```
 
 ```python
-data = load_input_data('input_files/diag_corr.yaml')
+data = build_input_data('input_files/diag_corr.yaml')
 comb = GVMCombination(data)
 comb.fit()
 mu_hat = comb.fit_results.mu
@@ -118,7 +118,7 @@ print(f'χ² = {chi_2:.3f}, significance = {significance} \n')
 ```
 
 ```python
-data = load_input_data('input_files/hybrid_corr.yaml')
+data = build_input_data('input_files/hybrid_corr.yaml')
 comb = GVMCombination(data)
 comb.fit()
 mu_hat = comb.fit_results.mu
@@ -167,7 +167,7 @@ The `ones` option corresponds to:
 ```
 
 ```python
-data = load_input_data('input_files/full_corr.yaml')
+data = build_input_data('input_files/full_corr.yaml')
 comb = GVMCombination(data)
 comb.fit()
 mu_hat = comb.fit_results.mu
@@ -226,7 +226,7 @@ The `ones` option corresponds to:
 ```
 
 ```python
-data = load_input_data('input_files/stat_cov.yaml')
+data = build_input_data('input_files/stat_cov.yaml')
 comb = GVMCombination(data)
 comb.fit()
 mu_hat = comb.fit_results.mu
@@ -242,28 +242,29 @@ print(f'χ² = {chi_2:.3f}, significance = {significance}')
     χ² = 4.000, significance = 1.999999999999998
 
 ## 3. Tip: modifying the combination
-You can obtain the current input with `input_data()` and modify the returned dictionary. 
-After editing, pass it to `update_data()` to apply the changes before refitting.
+You can obtain the current input with `get_input_data(copy=True)` and modify the returned dictionary.
+After editing, pass it to `set_input_data()` to apply the changes before refitting.
 
 ```python
-data = load_input_data('input_files/diag_corr.yaml')
+data = build_input_data('input_files/diag_corr.yaml')
 comb = GVMCombination(data)
-info = comb.input_data()
-info['data']['measurements']['m1']['central'] = 2.0
-info['syst']['sys1']['shift']['value']['m1'] = 0.5
-info['syst']['sys1']['error-on-error']['type'] = 'dependent'
-info['syst']['sys1']['shift']['correlation'] = np.array([[1.0, 0.3], [0.3, 1.0]])```
+info = comb.get_input_data(copy=True)
+info.measurements['m1'] = 2.0
+i = info.labels.index('m1')
+info.syst['sys1'][i] = 0.5
+info.eoe_type['sys1'] = 'dependent'
+info.corr['sys1'] = np.array([[1.0, 0.3], [0.3, 1.0]])```
 
 ```python
-info['syst']['sys1']['shift']['correlation']
+info.corr['sys1']
 ```
 
     [[1.  0.3]
      [0.3 1. ]]
 
 ```python
-comb.update_data(info)
-comb.fit_results = comb.minimize()
+comb.set_input_data(info)
+comb.fit()
 print(f"updated mu_hat={comb.fit_results.mu:.4f}")
 ```
 
@@ -289,16 +290,16 @@ Here, we reinitialize the combination using the configuration file `diag_corr.ya
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
-data = load_input_data('input_files/diag_corr.yaml')
+data = build_input_data('input_files/diag_corr.yaml')
 comb = GVMCombination(data)
 
-base_info = comb.input_data()
+base_info = comb.get_input_data(copy=True)
 
-y_1 = base_info['data']['measurements']['m1']['central']
-y_2 = base_info['data']['measurements']['m2']['central']
-base_info['syst']['sys1']['error-on-error']['type'] = 'independent'
+y_1 = base_info.measurements['m1']
+y_2 = base_info.measurements['m2']
+base_info.eoe_type['sys1'] = 'independent'
 
-comb.update_data(base_info)
+comb.set_input_data(base_info)
 
 cv = []
 lower_bound = []
@@ -309,8 +310,8 @@ sign = []
 
 for eps in eps_grid:
     base_info = deepcopy(base_info)
-    base_info['syst']['sys1']['error-on-error']['value'] = float(eps)
-    comb.update_data(base_info)
+    base_info.uncertain_systematics['sys1'] = np.repeat(float(eps), base_info.n_meas)
+    comb.set_input_data(base_info)
     cv.append(comb.fit_results.mu)
     lower_bound.append(comb.confidence_interval()[0])
     upper_bound.append(comb.confidence_interval()[1])
@@ -392,19 +393,19 @@ Here, we set \( y_1 = 2.5 \) and \( y_2 = -2.5 \) to illustrate how errors-on-er
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
-data = load_input_data('input_files/diag_corr.yaml')
+data = build_input_data('input_files/diag_corr.yaml')
 comb = GVMCombination(data)
 
-base_info = comb.input_data()
+base_info = comb.get_input_data(copy=True)
 cv = []
 
 y_1 = 2.5
 y_2 = -2.5
-base_info['data']['measurements']['m1']['central'] = y_1
-base_info['data']['measurements']['m2']['central'] = y_2
-base_info['syst']['sys1']['error-on-error']['type'] = 'independent'
+base_info.measurements['m1'] = y_1
+base_info.measurements['m2'] = y_2
+base_info.eoe_type['sys1'] = 'independent'
 
-comb.update_data(base_info)
+comb.set_input_data(base_info)
 
 lower_bound = []
 upper_bound = []
@@ -414,8 +415,8 @@ sign = []
 
 for eps in eps_grid:
     base_info = deepcopy(base_info)
-    base_info['syst']['sys1']['error-on-error']['value'] = float(eps)
-    comb.update_data(base_info)
+    base_info.uncertain_systematics['sys1'] = np.repeat(float(eps), base_info.n_meas)
+    comb.set_input_data(base_info)
     cv.append(comb.fit_results.mu)
     lower_bound.append(comb.confidence_interval()[0])
     upper_bound.append(comb.confidence_interval()[1])
@@ -499,17 +500,17 @@ Here, we focus exclusively on the case where the input measurements are in mutua
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
-data = load_input_data('input_files/diag_corr.yaml')
+data = build_input_data('input_files/diag_corr.yaml')
 comb = GVMCombination(data)
 
-base_info = comb.input_data()
+base_info = comb.get_input_data(copy=True)
 cv = []
 
 y_1 = 2.5
 y_2 = -2.5
-base_info['data']['measurements']['m1']['central'] = y_1
-base_info['data']['measurements']['m2']['central'] = y_2
-comb.update_data(base_info)
+base_info.measurements['m1'] = y_1
+base_info.measurements['m2'] = y_2
+comb.set_input_data(base_info)
 
 lower_bound = []
 upper_bound = []
@@ -519,8 +520,8 @@ sign = []
 
 for eps in eps_grid:
     base_info = deepcopy(base_info)
-    base_info['syst']['sys1']['error-on-error']['value'] = float(eps)
-    comb.update_data(base_info)
+    base_info.uncertain_systematics['sys1'] = np.repeat(float(eps), base_info.n_meas)
+    comb.set_input_data(base_info)
     cv.append(comb.fit_results.mu)
     lower_bound.append(comb.confidence_interval()[0])
     upper_bound.append(comb.confidence_interval()[1])
@@ -598,17 +599,17 @@ For completeness, we show the results for the two remaining examples: a systemat
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
-data = load_input_data('input_files/hybrid_corr.yaml')
+data = build_input_data('input_files/hybrid_corr.yaml')
 comb = GVMCombination(data)
 
-base_info = comb.input_data()
+base_info = comb.get_input_data(copy=True)
 cv = []
 
 y_1 = 2.5
 y_2 = -2.5
-base_info['data']['measurements']['m1']['central'] = y_1
-base_info['data']['measurements']['m2']['central'] = y_2
-comb.update_data(base_info)
+base_info.measurements['m1'] = y_1
+base_info.measurements['m2'] = y_2
+comb.set_input_data(base_info)
 
 lower_bound = []
 upper_bound = []
@@ -618,8 +619,8 @@ sign = []
 
 for eps in eps_grid:
     base_info = deepcopy(base_info)
-    base_info['syst']['sys1']['error-on-error']['value'] = float(eps)
-    comb.update_data(base_info)
+    base_info.uncertain_systematics['sys1'] = np.repeat(float(eps), base_info.n_meas)
+    comb.set_input_data(base_info)
     cv.append(comb.fit_results.mu)
     lower_bound.append(comb.confidence_interval()[0])
     upper_bound.append(comb.confidence_interval()[1])
@@ -673,17 +674,17 @@ plt.show()
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
-data = load_input_data('input_files/full_corr.yaml')
+data = build_input_data('input_files/full_corr.yaml')
 comb = GVMCombination(data)
 
-base_info = comb.input_data()
+base_info = comb.get_input_data(copy=True)
 cv = []
 
 y_1 = 2.5
 y_2 = -2.5
-base_info['data']['measurements']['m1']['central'] = y_1
-base_info['data']['measurements']['m2']['central'] = y_2
-comb.update_data(base_info)
+base_info.measurements['m1'] = y_1
+base_info.measurements['m2'] = y_2
+comb.set_input_data(base_info)
 
 lower_bound = []
 upper_bound = []
@@ -693,8 +694,8 @@ sign = []
 
 for eps in eps_grid:
     base_info = deepcopy(base_info)
-    base_info['syst']['sys1']['error-on-error']['value'] = float(eps)
-    comb.update_data(base_info)
+    base_info.uncertain_systematics['sys1'] = np.repeat(float(eps), base_info.n_meas)
+    comb.set_input_data(base_info)
     cv.append(comb.fit_results.mu)  
     lower_bound.append(comb.confidence_interval()[0])
     upper_bound.append(comb.confidence_interval()[1])
