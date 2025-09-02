@@ -60,8 +60,14 @@ This installs the dependencies listed in ``requirements.txt`` using
 from gvm.gmv import GVMCombination
 from gvm.config import build_input_data
 
+#build input data object
 data = build_input_data("path/to/config.yaml")
+
+#set up combination
 comb = GVMCombination(data)
+
+#Fit!
+comb.fit()
 ```
 
 A comprehensive introductory tutorial is available in the [toy](tutorials/toy) folder. The top mass example from the [paper](https://arxiv.org/abs/2407.05322) can be found in the [top-mass](tutorials/top-mass) folder.
