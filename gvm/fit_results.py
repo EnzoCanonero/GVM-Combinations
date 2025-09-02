@@ -1,3 +1,4 @@
+# Fit result dataclass for optimization outputs.
 from dataclasses import dataclass
 import numpy as np
 
@@ -7,4 +8,3 @@ class FitResult:
     mu: float
     thetas: np.ndarray
     nll: float
-

@@ -1,3 +1,4 @@
+# Configuration parsing and input validation utilities.
 import os
 import warnings
 from dataclasses import dataclass
@@ -19,10 +20,7 @@ class input_data:
 
 
 def build_input_data(path: str) -> input_data:
-    """Parse YAML at ``path`` and return populated input_data.
-
-    No intermediate cfg dict is exposed; everything is built directly.
-    """
+    #Parse YAML at ``path`` and return populated input_data.
     with open(path, 'r') as f:
         data = yaml.safe_load(f)
 
@@ -149,6 +147,16 @@ def build_input_data(path: str) -> input_data:
 
 
 def validate_input_data(input_data: input_data) -> None:
+    """Validate internal consistency of a parsed ``input_data``.
+
+    Checks that measurement/systematic counts match expectations, matrices have
+    correct shapes and are symmetric (emitting warnings for asymmetries), and
+    that error-on-error settings are consistent with their types:
+    - independent: correlation must be diagonal and epsilon length equals the
+      number of nonzero shifts for that systematic;
+    - dependent: if provided, epsilon must be a single scalar (not a vector).
+    Raises ValueError on violations.
+    """
     meas_names = list(input_data.measurements)
     if len(meas_names) != input_data.n_meas:
         raise ValueError(f'Expected {input_data.n_meas} measurements, got {len(meas_names)}')
