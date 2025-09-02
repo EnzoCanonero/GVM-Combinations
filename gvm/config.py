@@ -148,34 +148,34 @@ def build_input_data(path: str) -> input_data:
     )
 
 
-def validate_input_data(state: input_data) -> None:
-    meas_names = list(state.measurements)
-    if len(meas_names) != state.n_meas:
-        raise ValueError(f'Expected {state.n_meas} measurements, got {len(meas_names)}')
+def validate_input_data(input_data: input_data) -> None:
+    meas_names = list(input_data.measurements)
+    if len(meas_names) != input_data.n_meas:
+        raise ValueError(f'Expected {input_data.n_meas} measurements, got {len(meas_names)}')
 
-    if len(state.syst) != state.n_syst:
-        raise ValueError(f'Expected {state.n_syst} systematics, got {len(state.syst)}')
+    if len(input_data.syst) != input_data.n_syst:
+        raise ValueError(f'Expected {input_data.n_syst} systematics, got {len(input_data.syst)}')
 
-    if state.V_stat.shape != (state.n_meas, state.n_meas):
-        raise ValueError(f'Stat covariance must be {state.n_meas}x{state.n_meas}')
-    diff = np.argwhere(~np.isclose(state.V_stat, state.V_stat.T, rtol=1e-7, atol=1e-8))
+    if input_data.V_stat.shape != (input_data.n_meas, input_data.n_meas):
+        raise ValueError(f'Stat covariance must be {input_data.n_meas}x{input_data.n_meas}')
+    diff = np.argwhere(~np.isclose(input_data.V_stat, input_data.V_stat.T, rtol=1e-7, atol=1e-8))
     for i, j in diff:
         if i < j:
             warnings.warn(
                 f'Stat covariance asymmetric for measurements '
                 f'{meas_names[i]} and {meas_names[j]}: '
-                f'{state.V_stat[i, j]} vs {state.V_stat[j, i]}')
+                f'{input_data.V_stat[i, j]} vs {input_data.V_stat[j, i]}')
 
-    for name, arr in state.syst.items():
-        if arr.shape[0] != state.n_meas:
-            raise ValueError(f'Systematic {name} must have {state.n_meas} values')
+    for name, arr in input_data.syst.items():
+        if arr.shape[0] != input_data.n_meas:
+            raise ValueError(f'Systematic {name} must have {input_data.n_meas} values')
 
-    if len(state.corr) != state.n_syst:
-        raise ValueError(f'Expected {state.n_syst} correlation matrices, got {len(state.corr)}')
+    if len(input_data.corr) != input_data.n_syst:
+        raise ValueError(f'Expected {input_data.n_syst} correlation matrices, got {len(input_data.corr)}')
 
-    for name, mat in state.corr.items():
-        if mat.shape != (state.n_meas, state.n_meas):
-            raise ValueError(f'Correlation matrix {name} must be {state.n_meas}x{state.n_meas}')
+    for name, mat in input_data.corr.items():
+        if mat.shape != (input_data.n_meas, input_data.n_meas):
+            raise ValueError(f'Correlation matrix {name} must be {input_data.n_meas}x{input_data.n_meas}')
         diff = np.argwhere(~np.isclose(mat, mat.T, rtol=1e-7, atol=1e-8))
         for i, j in diff:
             if i < j:
@@ -183,22 +183,22 @@ def validate_input_data(state: input_data) -> None:
                     f'Correlation matrix "{name}" asymmetric for measurements '
                     f'{meas_names[i]} and {meas_names[j]}: '
                     f'{mat[i, j]} vs {mat[j, i]}')
-        if state.eoe_type.get(name, 'dependent') == 'independent':
-            if not np.allclose(mat, np.eye(state.n_meas)):
+        if input_data.eoe_type.get(name, 'dependent') == 'independent':
+            if not np.allclose(mat, np.eye(input_data.n_meas)):
                 raise ValueError(
                     f'Systematic {name} has independent error-on-error but correlation is not diagonal')
 
-    for name, typ in state.eoe_type.items():
+    for name, typ in input_data.eoe_type.items():
         if typ == 'independent':
-            expected = np.count_nonzero(state.syst[name])
-            eps = np.asarray(state.uncertain_systematics.get(name, np.zeros(expected)))
+            expected = np.count_nonzero(input_data.syst[name])
+            eps = np.asarray(input_data.uncertain_systematics.get(name, np.zeros(expected)))
             if eps.shape[0] != expected:
                 raise ValueError(
                     f'Systematic {name} has independent error-on-error but epsilon has {eps.shape[0]} values')
         elif typ == 'dependent':
             # If provided, epsilon must be a single scalar value (not a list/vector)
-            if name in state.uncertain_systematics:
-                eps_val = state.uncertain_systematics[name]
+            if name in input_data.uncertain_systematics:
+                eps_val = input_data.uncertain_systematics[name]
                 # Accept numpy scalars and Python numbers; reject lists/arrays/tuples
                 if isinstance(eps_val, (list, tuple, np.ndarray)):
                     raise ValueError(
