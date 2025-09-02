@@ -274,7 +274,7 @@ print(f"updated mu_hat={comb.fit_results.mu:.4f}")
 
 # Effect of error-on-error
 
-We now vary the error-on-error parameter ($\varepsilon$) from 0 to 0.6 to illustrate how the combination results depend on its value. When errors-on-error are nonzero, the distinction between *independent* and *dependent* systematics becomes relevant and affects the outcome of the combination.
+We now vary the error-on-error parameter ($\varepsilon$) from 0 to 0.6 to illustrate how the combination results depend on its value. When errors-on-errors are nonzero, the distinction between *independent* and *dependent* systematics becomes relevant and affects the outcome of the combination.
 
 - When a systematic effect is **independent**, the estimates of the systematic uncertainties for the measurements in the combination are statistically independent. This means that the systematic uncertainty for measurement *m1* could be overestimated while *m2* is underestimated, or vice versa — both estimates can fluctuate independently. This also implies that the correlation matrix of the corresponding nuisance parameters must be diagonal. If a non-diagonal correlation matrix is provided, the toolkit will raise an error.
 
@@ -292,6 +292,7 @@ Here, we reinitialize the combination using the configuration file `diag_corr.ya
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
 data = build_input_data('input_files/diag_corr.yaml')
+
 comb = GVMCombination(data)
 
 base_info = comb.get_input_data(copy=True)
@@ -389,12 +390,13 @@ In general, when the input measurements are compatible, the results are only sli
 
 ### Incompatible Measurements
 
-Here, we set \( y_1 = 2.5 \) and \( y_2 = -2.5 \) to illustrate how errors-on-errors affect the result of the average.
+Here, we set \( y_1 = 2.5 \) and \( y_2 = -2.5 \) to illustrate how errors-on-errors affect the result of the average when the input measurements are in mutual tension.
 
 
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
 data = build_input_data('input_files/diag_corr.yaml')
+
 comb = GVMCombination(data)
 
 base_info = comb.get_input_data(copy=True)
@@ -494,6 +496,93 @@ When the degree of incompatibility between the input data is larger, three effec
 
 3. The goodness-of-fit decreases.
 
+If the systematic type is \emph{independent}, you can assign an individual ``error-on-error'' to each measurement in the combination, as the systematic effect acts independently for each. In practice, this means either specifying it directly as a vector in the configuration file (e.g., [0.1, 0.5]) or modifying the combination as shown below. If a single $\varepsilon$ value is provided, the toolkit automatically assigns this value to all entries of the vector. In the example, we reproduce the previous result by assigning the same value to each component of the systematic effect; however, you can experiment with different values, such as $[\varepsilon, 0.0]$ or $[0.0, \varepsilon]$, to see how this affects the combination. What emerges is that the error-on-error associated with the less precise measurement dominates the combination, while the impact of the error-on-error on the more precise one is negligible.
+
+```python
+eps_grid = np.linspace(0., 0.6, 14)
+data = build_input_data('input_files/diag_corr.yaml')
+
+comb = GVMCombination(data)
+
+base_info = comb.get_input_data(copy=True)
+
+y_1 = 2.5
+y_2 = -2.5
+base_info.measurements['m1'] = y_1
+base_info.measurements['m2'] = y_2
+base_info.eoe_type['sys1'] = 'independent'
+
+comb.set_input_data(base_info)
+
+cv = []
+lower_bound = []
+upper_bound = []
+ci = []
+
+sign = []
+
+for eps in eps_grid:
+    base_info = deepcopy(base_info)
+    base_info.uncertain_systematics['sys1'] = np.array([eps, eps])
+    comb.set_input_data(base_info)
+    cv.append(comb.fit_results.mu)
+    lower_bound.append(comb.confidence_interval()[0])
+    upper_bound.append(comb.confidence_interval()[1])
+    ci.append(comb.confidence_interval()[2])
+
+    chi_2 = comb.goodness_of_fit()
+    p_value = 1 - chi2.cdf(chi_2, df=1)
+    sign_eps = norm.ppf(1 - p_value/2)
+    sign.append(sign_eps)
+```
+
+```python
+plt.figure(figsize=(14, 10))
+
+# Plot central value: dashed line with circle markers
+plt.plot(eps_grid, cv, color="black", marker='o', linestyle="--", label="Central Value")
+
+# Plot the 1-sigma confidence interval boundaries and fill-between
+plt.plot(eps_grid, upper_bound, color="green", alpha=0.6)
+plt.plot(eps_grid, lower_bound, color="green", alpha=0.6)
+plt.fill_between(eps_grid, upper_bound, lower_bound, color='green', alpha=0.6, label="$1-\sigma$ CI")
+
+# Plot horizontal reference lines
+plt.axhline(y_1, color='r', linestyle='-', label="m1")
+plt.axhline(y_2, color='b', linestyle='-', label="m2")
+
+plt.xlabel("$\epsilon$", fontsize=30)
+plt.ylabel("$y$", fontsize=30)
+plt.xticks(fontsize=25)
+plt.yticks(fontsize=25)
+plt.legend(fontsize=25, loc = 'lower left')
+plt.grid(True, which="both", linestyle="--", linewidth=0.5)
+plt.tight_layout()
+
+plt.ylim(-3.5, 3.5)
+plt.xlim(0.0, 0.6)
+
+plt.savefig("output/independent_compatible_singleEps.png")
+plt.show()
+```
+
+![png](output/independent_compatible_singleEps.png)
+
+```python
+plt.figure(figsize=(11, 7))
+plt.plot(eps_grid, sign, '--o')
+plt.xlabel(r'$\epsilon$', fontsize=24)
+plt.ylabel(r'significance', fontsize=20)
+plt.ylim((0.0, 3))
+plt.xlim((0.0, 0.6))
+plt.grid(True)
+plt.tight_layout()
+plt.savefig('output/independent_incompatible_singleEps_gof.png')
+plt.show()
+```
+
+![png](output/independent_incompatible_singleEps_gof.png)
+
 ## 2. Dependent systematic
 
 Here, we focus exclusively on the case where the input measurements are in mutual tension. In the case of compatible measurements, errors-on-errors would once again have little to no effect.
@@ -502,6 +591,7 @@ Here, we focus exclusively on the case where the input measurements are in mutua
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
 data = build_input_data('input_files/diag_corr.yaml')
+
 comb = GVMCombination(data)
 
 base_info = comb.get_input_data(copy=True)
@@ -521,7 +611,7 @@ sign = []
 
 for eps in eps_grid:
     base_info = deepcopy(base_info)
-    base_info.uncertain_systematics['sys1'] = np.repeat(float(eps), base_info.n_meas)
+    base_info.uncertain_systematics['sys1'] = float(eps)
     comb.set_input_data(base_info)
     cv.append(comb.fit_results.mu)
     lower_bound.append(comb.confidence_interval()[0])
@@ -601,6 +691,7 @@ For completeness, we show the results for the two remaining examples: a systemat
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
 data = build_input_data('input_files/hybrid_corr.yaml')
+
 comb = GVMCombination(data)
 
 base_info = comb.get_input_data(copy=True)
@@ -620,7 +711,7 @@ sign = []
 
 for eps in eps_grid:
     base_info = deepcopy(base_info)
-    base_info.uncertain_systematics['sys1'] = np.repeat(float(eps), base_info.n_meas)
+    base_info.uncertain_systematics['sys1'] = float(eps)
     comb.set_input_data(base_info)
     cv.append(comb.fit_results.mu)
     lower_bound.append(comb.confidence_interval()[0])
@@ -676,6 +767,7 @@ plt.show()
 ```python
 eps_grid = np.linspace(0., 0.6, 14)
 data = build_input_data('input_files/full_corr.yaml')
+
 comb = GVMCombination(data)
 
 base_info = comb.get_input_data(copy=True)
@@ -695,9 +787,9 @@ sign = []
 
 for eps in eps_grid:
     base_info = deepcopy(base_info)
-    base_info.uncertain_systematics['sys1'] = np.repeat(float(eps), base_info.n_meas)
+    base_info.uncertain_systematics['sys1'] = float(eps)
     comb.set_input_data(base_info)
-    cv.append(comb.fit_results.mu)  
+    cv.append(comb.fit_results.mu)
     lower_bound.append(comb.confidence_interval()[0])
     upper_bound.append(comb.confidence_interval()[1])
     ci.append(comb.confidence_interval()[2])

@@ -1,3 +1,4 @@
+# Likelihood utilities: NLL, Fisher information, Bartlett corrections.
 import numpy as np
 from .fit_results import FitResult
 
@@ -153,4 +154,3 @@ def bartlett_correction(comb):
     b_profile = 1 + b_lik - b_theta
     b_chi2 = float(len(comb.measurements) - 1) + b_chi2 - b_lik
     return b_profile, b_chi2
-

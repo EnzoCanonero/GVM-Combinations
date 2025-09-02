@@ -1,3 +1,4 @@
+# Main GVM combination API (fitting, intervals, goodness-of-fit).
 import os
 import numpy as np
 import yaml
@@ -299,8 +300,7 @@ class GVMCombination:
     # ------------------------------------------------------------------
 
     def likelihood_ratio(self, mu):
-        """Profile likelihood-ratio test statistic
-        """
+        #Profile likelihood-ratio test statistic
         best = self.fit_results or self.minimize()
         nll_best = best.nll if isinstance(best, FitResult) else _nll_fn(self, best['mu'], *best['thetas'])
         res_mu = self.minimize(fixed={'mu': mu}, update=False)
@@ -370,8 +370,7 @@ class GVMCombination:
     # Goodness of fit
     # ------------------------------------------------------------------
     def goodness_of_fit(self):
-        """Return GOF at the fitted parameters (-2 * NLL with Bartlett correction).
-        """
+        #Return GOF at the fitted parameters (-2 * NLL with Bartlett correction).
         fit = self.fit_results if self.fit_results else self.minimize()
         mu = fit.mu if isinstance(fit, FitResult) else fit['mu']
         thetas = fit.thetas if isinstance(fit, FitResult) else fit['thetas']
