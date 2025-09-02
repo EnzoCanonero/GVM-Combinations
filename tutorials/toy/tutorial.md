@@ -253,7 +253,8 @@ info.measurements['m1'] = 2.0
 i = info.labels.index('m1')
 info.syst['sys1'][i] = 0.5
 info.eoe_type['sys1'] = 'dependent'
-info.corr['sys1'] = np.array([[1.0, 0.3], [0.3, 1.0]])```
+info.corr['sys1'] = np.array([[1.0, 0.3], [0.3, 1.0]])
+```
 
 ```python
 info.corr['sys1']
