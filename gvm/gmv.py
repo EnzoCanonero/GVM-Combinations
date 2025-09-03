@@ -4,6 +4,7 @@ from scipy.stats import norm
 import numpy as np
 import yaml
 import warnings
+from dataclasses import replace
 from .fit_results import FitResult
 from .likelihood import nll as _nll_fn, bartlett_correction as _bartlett_correction_fn
 from .minuit_wrapper import minimize as _minimize
@@ -18,16 +19,19 @@ class GVMCombination:
     def __init__(self, data):
         # Accept pre-built input_data (from gvm.config)
         input_data = data
+        
+        # Validate that the input data has the required structure and fields
         validate_input_data(input_data)
 
         self._input_data = input_data
 
-        # prepared empty state
+        # Pre-compute matrices needed for fitting
         self.V_inv = None
         self.C_inv = {}
         self.Gamma = {}
         self.prepare()
         
+        # Placeholder for fit results (to be populated after fitting)
         self.fit_results = None
     
     # ------------------------------------------------------------------
@@ -79,7 +83,6 @@ class GVMCombination:
         if not copy:
             return self._input_data
         s = self._input_data
-        from dataclasses import replace
         return replace(
             s,
             measurements=dict(s.measurements),
@@ -109,12 +112,43 @@ class GVMCombination:
     
     def prepare(self):
         """Validate inputs and compute internal matrices for likelihood.
-        This must be called before calling likelihood or fitting methods
-        if the instance was not prepared yet.
         """
         validate_input_data(self._input_data)
         self.V_inv, self.C_inv, self.Gamma = self._compute_likelihood_matrices()
         return self
+    
+    def _compute_likelihood_matrices(self):
+        """Build likelihood matrices and discard NP columns associated with null shifts.
+        After scaling by shifts, all-zero Gamma columns are removed, keeping only
+        active nuisance parameters.
+        """
+        n = len(self.measurements)
+        V_stat = self.V_stat
+        V_syst = np.zeros((n, n))
+        for src, rho in self.corr.items():
+            if src not in self.uncertain_systematics:
+                sigma = self.syst[src]
+                V_syst += np.outer(sigma, sigma) * rho
+        V_blue = V_stat + V_syst
+        V_inv = np.linalg.inv(V_blue)
+
+        C_inv = {}
+        Gamma_factors = {}
+        for src, sigma in self.syst.items():
+            if src in self.uncertain_systematics:
+                rho = self.corr[src]
+                red, Gamma = self._reduce_corr(rho, src_name=src)
+                for i in range(Gamma.shape[0]):
+                    for j in range(Gamma.shape[1]):
+                        if Gamma[i, j] != 0:
+                            Gamma[i, j] *= sigma[i]
+                zero_cols = np.all(Gamma == 0, axis=0)
+                Gamma = Gamma[:, ~zero_cols]
+                if np.any(zero_cols):
+                    red = red[~zero_cols][:, ~zero_cols]
+                C_inv[src] = np.linalg.inv(red)
+                Gamma_factors[src] = Gamma
+        return V_inv, C_inv, Gamma_factors
     
     def _reduce_corr(self, rho, src_name=None):
         """Reduce correlation by grouping fully correlated/anticorrelated entries (±1)
@@ -161,40 +195,9 @@ class GVMCombination:
                     f'Negative eigenvalue {m:.4e} in systematic "{src_name}"; '
                     f'adding {offset:.4e} to diagonal for regularisation.')
         return reduced, Gamma
-
-    def _compute_likelihood_matrices(self):
-        """Build likelihood matrices and discard NP columns associated with null shifts.
-        After scaling by shifts, all-zero Gamma columns are removed, keeping only
-        active nuisance parameters.
-        """
-        n = len(self.measurements)
-        V_stat = self.V_stat
-        V_syst = np.zeros((n, n))
-        for src, rho in self.corr.items():
-            if src not in self.uncertain_systematics:
-                sigma = self.syst[src]
-                V_syst += np.outer(sigma, sigma) * rho
-        V_blue = V_stat + V_syst
-        V_inv = np.linalg.inv(V_blue)
-
-        C_inv = {}
-        Gamma_factors = {}
-        for src, sigma in self.syst.items():
-            if src in self.uncertain_systematics:
-                rho = self.corr[src]
-                red, Gamma = self._reduce_corr(rho, src_name=src)
-                for i in range(Gamma.shape[0]):
-                    for j in range(Gamma.shape[1]):
-                        if Gamma[i, j] != 0:
-                            Gamma[i, j] *= sigma[i]
-                zero_cols = np.all(Gamma == 0, axis=0)
-                Gamma = Gamma[:, ~zero_cols]
-                if np.any(zero_cols):
-                    red = red[~zero_cols][:, ~zero_cols]
-                C_inv[src] = np.linalg.inv(red)
-                Gamma_factors[src] = Gamma
-        return V_inv, C_inv, Gamma_factors
     
+    # ------------------------------------------------------------------
+    # Minimize and Fit
     # ------------------------------------------------------------------
     def minimize(self, fixed=None, update=True):
         """Minimise the negative log-likelihood.
@@ -299,7 +302,6 @@ class GVMCombination:
     # ------------------------------------------------------------------
     # Confidence interval
     # ------------------------------------------------------------------
-
     def likelihood_ratio(self, mu):
         #Profile likelihood-ratio test statistic
         best = self.fit_results or self.minimize()
@@ -322,6 +324,7 @@ class GVMCombination:
             Maximum number of scan/refinement iterations in each direction to
             guard against non-convergence.
         cl_val : float, optional
+            Confidence level
 
         Returns
         -------

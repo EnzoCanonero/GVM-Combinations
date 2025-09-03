@@ -151,11 +151,7 @@ def validate_input_data(input_data: input_data) -> None:
 
     Checks that measurement/systematic counts match expectations, matrices have
     correct shapes and are symmetric (emitting warnings for asymmetries), and
-    that error-on-error settings are consistent with their types:
-    - independent: correlation must be diagonal and epsilon length equals the
-      number of nonzero shifts for that systematic;
-    - dependent: if provided, epsilon must be a single scalar (not a vector).
-    Raises ValueError on violations.
+    that error-on-error settings are consistent with their types.
     """
     meas_names = list(input_data.measurements)
     # Check declared n_meas matches number of provided measurements
@@ -206,44 +202,50 @@ def validate_input_data(input_data: input_data) -> None:
                 raise ValueError(
                     f'Systematic {name} has independent error-on-error but correlation is not diagonal')
 
+    # First pass: handle dependent systematics
     for name, typ in input_data.eoe_type.items():
-        # For independent type: expand scalar epsilon to a vector of length equal
-        # to the number of active (nonzero-shift) components
-        if typ == 'independent' and name in input_data.uncertain_systematics:
+        if typ != 'dependent':
+            continue
+        if name in input_data.uncertain_systematics:
+            eps_val = input_data.uncertain_systematics[name]
+            # Must be a scalar number for dependent type
+            if isinstance(eps_val, (list, tuple, np.ndarray)):
+                raise ValueError(
+                    f"Systematic {name} has dependent error-on-error but epsilon is not a single number")
+            try:
+                epsf = float(eps_val)
+            except Exception:
+                epsf = None
+            if epsf is not None and epsf == 0.0:
+                input_data.uncertain_systematics.pop(name, None)
+                warnings.warn(
+                    f"Systematic '{name}' has epsilon 0.0; removing from uncertain_systematics.")
+
+    # Second pass: handle independent systematics
+    for name, typ in input_data.eoe_type.items():
+        if typ != 'independent':
+            continue
+        expected = np.count_nonzero(input_data.syst[name])
+        # Expand scalar epsilon to vector over active (nonzero-shift) components
+        if name in input_data.uncertain_systematics:
             val = input_data.uncertain_systematics[name]
             if not isinstance(val, (list, tuple, np.ndarray)):
-                expected_len = np.count_nonzero(input_data.syst[name])
-                input_data.uncertain_systematics[name] = (
-                    np.repeat(float(val), expected_len)
-                )
-        # Drop zero-epsilon entries from uncertain_systematics with a warning
-        if name in input_data.uncertain_systematics:
-            if typ == 'dependent':
-                try:
-                    epsf = float(input_data.uncertain_systematics[name])
-                except Exception:
-                    epsf = None
-                if epsf is not None and epsf == 0.0:
-                    input_data.uncertain_systematics.pop(name, None)
-            elif typ == 'independent':
-                eps_arr = np.asarray(input_data.uncertain_systematics[name], dtype=float)
-                expected = np.count_nonzero(input_data.syst[name])
-                # If all masked components are zero (or no active components), drop it
-                if expected == 0 or (eps_arr.size == expected and not np.any(eps_arr != 0.0)):
-                    input_data.uncertain_systematics.pop(name, None)
-
-        if typ == 'independent':
-            # Check epsilon vector length equals count of nonzero shifts
-            expected = np.count_nonzero(input_data.syst[name])
-            eps = np.asarray(input_data.uncertain_systematics.get(name, np.zeros(expected)))
-            if eps.shape[0] != expected:
+                input_data.uncertain_systematics[name] = np.repeat(float(val), expected)
+        # Fetch and normalise epsilon vector
+        eps_raw = input_data.uncertain_systematics.get(name, np.zeros(expected))
+        eps = np.asarray(eps_raw, dtype=float)
+        if eps.shape[0] != expected:
+            if eps.shape[0] == input_data.n_meas:
+                mask = input_data.syst[name] != 0.0
+                eps = eps[mask]
+                input_data.uncertain_systematics[name] = eps
+                warnings.warn(
+                    f"Systematic '{name}' epsilon vector included zero-shift entries; dropping them to match active components.")
+            else:
                 raise ValueError(
-                    f'Systematic {name} has independent error-on-error but epsilon has {eps.shape[0]} values')
-        elif typ == 'dependent':
-            # Check that dependent epsilon, if provided, is a single scalar (not a vector)
-            if name in input_data.uncertain_systematics:
-                eps_val = input_data.uncertain_systematics[name]
-                # Accept numpy scalars and Python numbers; reject lists/arrays/tuples
-                if isinstance(eps_val, (list, tuple, np.ndarray)):
-                    raise ValueError(
-                        f'Systematic {name} has dependent error-on-error but epsilon is not a single number')
+                    f"Systematic {name} has independent error-on-error but epsilon has {eps.shape[0]} values (expected {expected} or {input_data.n_meas})")
+        # Drop all-zero (or no active) entries for independent type
+        if expected == 0 or (eps.size == expected and not np.any(eps != 0.0)):
+            input_data.uncertain_systematics.pop(name, None)
+            warnings.warn(
+                f"Systematic '{name}' has all-zero epsilons; removing from uncertain_systematics.")
