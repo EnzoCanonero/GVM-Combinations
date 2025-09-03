@@ -43,6 +43,25 @@ nuisance parameters are profiled out, as in a BLUE-like combination.
 
 Further details can be found in [arXiv:2407.05322](https://arxiv.org/abs/2407.05322).
 
+## Bartlett Correction
+
+Profile likelihood ratios and goodness‑of‑fit (GOF) statistics can deviate from
+their asymptotic chi‑square behaviour when error‑on‑error terms are present or
+data samples are modest. To improve accuracy without resorting to expensive
+profiling or toy MC, the toolkit applies Bartlett correction factors computed
+analytically within the model.
+
+- Confidence intervals: the profile LR, `q(mu)`, is compared against a
+  Bartlett‑scaled threshold `b_profile × chi2_1(CL)`. This yields intervals with
+  better finite‑sample coverage.
+- Goodness of fit: the overall fit statistic is rescaled as
+  `q* = q × (N−1) / b_chi2` and then interpreted against a `chi2_{N−1}`
+  distribution. This stabilises the GOF in the presence of nonzero
+  error‑on‑error.
+
+The correction factors are computed automatically from the fitted point and the
+model’s information matrices; no user action is required.
+
 
 ## Setup
 
