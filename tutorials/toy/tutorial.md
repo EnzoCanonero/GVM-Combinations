@@ -846,6 +846,19 @@ Furthermore, in more realistic combinations involving additional measurements an
 
 # Four-measurement toy example
 
+In this example, we study a minimal setup with four measurements. In the first
+case, the inputs are mutually consistent: \((y_1, y_2, y_3, y_4) = (11, 10.5,
+9.5, 9)\). All measurements have statistical uncertainty \(\sigma_y = 1\), the
+control measurements are set to zero, and the estimated variances are
+\(v_i = 1\). We compute the best estimate of \(\mu\) and its 68.3% (1σ) and
+95.5% (2σ) confidence intervals as a function of the error‑on‑error parameter
+\(\varepsilon\).
+
+In the second case, we introduce an outlier by changing only the first
+measurement to \(y_1 = 16\), keeping everything else the same. We again compute
+the central value and confidence intervals vs. \(\varepsilon\), illustrating how
+increasing \(\varepsilon\) down‑weights the outlier in the averaging.
+
 Config file (`input_files/toy4.yaml`):
 
 ```yaml
