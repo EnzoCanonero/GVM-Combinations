@@ -37,23 +37,12 @@ comb.fit()
 mu_hat         = comb.fit_results.mu
 ci_low, ci_high, ci_half = comb.confidence_interval()
 chi2           = comb.goodness_of_fit()
-ndof           = comb.n_meas - 1
-
-latex_str = rf"""
-\[
-  {{\large\textbf{{BLUE result}}}}\\[8pt]
-  \boxed{{\quad
-    \begin{{aligned}}
-      \mathrm{{central\ value}}\,(m_t):\ &{mu_hat:.3f}\\[6pt]
-      \mathrm{{confidence\ interval}}:\ &\pm{ci_half:.3f}\\[6pt]
-      \chi^2/\mathrm{{NDOF}}:\ &{chi2:.2f}/{ndof}
-    \end{{aligned}}
-  \quad}}
-\]
-"""
-
-display(Latex(latex_str))
 ```
+
+BLUE result (baseline):
+- central value (m_t): 172.513
+- confidence interval (68.3%): ±0.329
+- chi2/NDOF: 7.56/14
 
 ### Scan ε per systematic (dependent type)
 
@@ -130,22 +119,12 @@ mu_hat = comb_fict.fit_results.mu
 ci_low, ci_high, ci_half = comb_fict.confidence_interval()
 chi2 = comb_fict.goodness_of_fit()
 ndof = comb_fict.n_meas - 1
-
-latex_str = rf"""
-\[
-  {{\large\textbf{{BLUE result}}}}\\[8pt]
-  \boxed{{\quad
-    \begin{{aligned}}
-      \mathrm{{central\ value}}\,(m_t):\ &{mu_hat:.3f}\\[6pt]
-      \mathrm{{confidence\ interval}}:\ &\pm{ci_half:.3f}\\[6pt]
-      \chi^2/\mathrm{{NDOF}}:\ &{chi2:.2f}/{ndof}
-    \end{{aligned}}
-  \quad}}
-\]
-"""
-
-display(Latex(latex_str))
 ```
+
+BLUE result (with fictitious measurement):
+- central value (m_t): 172.929
+- confidence interval (68.3%): ±0.296
+- chi2/NDOF: 15.18/15
 
 ### Scan ε per systematic (dependent type, with NEW)
 
@@ -209,4 +188,3 @@ plt.show()
 ![png](output/central_values_fict.png)
 
 ![png](output/confidence_intervals_fict.png)
-
