@@ -842,3 +842,117 @@ This example represents a pathological case, illustrating how, when the error-on
 In general, this highlights that a large error-on-error for this systematic is pathological. The imprecise knowledge of the systematic effect poses a serious problem, rendering the averaging of the two measurements meaningless.
 
 Furthermore, in more realistic combinations involving additional measurements and multiple systematic uncertainties, such pathological behaviours are expected to be less common, as demonstrated in the top-mass tutorial.
+
+
+# Four-measurement toy example
+
+Config file (`input_files/toy4.yaml`):
+
+```yaml
+global:
+  name: toy4_compatible
+  n_meas: 4
+  n_syst: 1
+  corr_dir: input_files/correlations
+
+data:
+  measurements:
+    - label: y1
+      central: 11.0
+      stat_error: 1.0
+    - label: y2
+      central: 10.5
+      stat_error: 1.0
+    - label: y3
+      central: 9.5
+      stat_error: 1.0
+    - label: y4
+      central: 9.0
+      stat_error: 1.0
+
+syst:
+  - name: sys1
+    shift:
+      value: [1.0, 1.0, 1.0, 1.0]
+    correlation: diagonal
+    error-on-error:
+      value: 0.0
+      type: dependent
+```
+
+## Compatible inputs
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from gvm.gmv import GVMCombination
+from gvm.config import build_input_data
+
+eps_grid = np.linspace(0.0, 0.6, 13)
+data = build_input_data('input_files/toy4.yaml')
+comb = GVMCombination(data)
+
+mu_vals, low_1, up_1, low_2, up_2 = [], [], [], [], []
+for eps in eps_grid:
+    info = comb.get_input_data(copy=True)
+    info.eoe_type['sys1'] = 'dependent'
+    info.uncertain_systematics['sys1'] = float(eps)
+    comb.set_input_data(info)
+    mu_vals.append(comb.fit_results.mu)
+    l1,u1,_ = comb.confidence_interval(cl=0.683)
+    l2,u2,_ = comb.confidence_interval(cl=0.955)
+    low_1.append(l1); up_1.append(u1)
+    low_2.append(l2); up_2.append(u2)
+
+plt.figure(figsize=(12,8))
+plt.plot(eps_grid, mu_vals, color='black', linestyle='--', marker='o', label='Central Value')
+plt.fill_between(eps_grid, low_1, up_1, color='green', alpha=0.5, label='68.3% CI')
+plt.fill_between(eps_grid, low_2, up_2, color='blue', alpha=0.25, label='95.5% CI')
+plt.xlabel(r'$\\epsilon$', fontsize=24)
+plt.ylabel(r'$\\mu$', fontsize=22)
+plt.xlim(0.0, 0.6)
+plt.grid(True)
+plt.legend(fontsize=14, loc='best')
+plt.tight_layout()
+plt.savefig('output/toy4_compatible.png')
+plt.show()
+```
+
+![png](output/toy4_compatible.png)
+
+## Outlier case (modify first measurement in code)
+
+```python
+eps_grid = np.linspace(0.0, 0.6, 13)
+data = build_input_data('input_files/toy4.yaml')
+# Modify first measurement to create the outlier scenario
+data.measurements['y1'] = 16.0
+comb = GVMCombination(data)
+
+mu_vals, low_1, up_1, low_2, up_2 = [], [], [], [], []
+for eps in eps_grid:
+    info = comb.get_input_data(copy=True)
+    info.eoe_type['sys1'] = 'dependent'
+    info.uncertain_systematics['sys1'] = float(eps)
+    comb.set_input_data(info)
+    mu_vals.append(comb.fit_results.mu)
+    l1,u1,_ = comb.confidence_interval(cl=0.683)
+    l2,u2,_ = comb.confidence_interval(cl=0.955)
+    low_1.append(l1); up_1.append(u1)
+    low_2.append(l2); up_2.append(u2)
+
+plt.figure(figsize=(12,8))
+plt.plot(eps_grid, mu_vals, color='black', linestyle='--', marker='o', label='Central Value')
+plt.fill_between(eps_grid, low_1, up_1, color='green', alpha=0.5, label='68.3% CI')
+plt.fill_between(eps_grid, low_2, up_2, color='blue', alpha=0.25, label='95.5% CI')
+plt.xlabel(r'$\\epsilon$', fontsize=24)
+plt.ylabel(r'$\\mu$', fontsize=22)
+plt.xlim(0.0, 0.6)
+plt.grid(True)
+plt.legend(fontsize=14, loc='best')
+plt.tight_layout()
+plt.savefig('output/toy4_outlier.png')
+plt.show()
+```
+
+![png](output/toy4_outlier.png)

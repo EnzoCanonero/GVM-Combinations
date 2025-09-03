@@ -328,8 +328,8 @@ class GVMCombination:
         tuple of float
             (lower, upper, half_width)
         """
-        thr = b_profile * (norm.ppf(0.5 * (1.0 + cl_val)) ** 2)
         b_profile, _ = _bartlett_correction_fn(self)
+        thr = b_profile * (norm.ppf(0.5 * (1.0 + cl_val)) ** 2)
         fit = self.fit_results or self.minimize()
         mu_hat = fit.mu if isinstance(fit, FitResult) else fit['mu']
         q0 = self.likelihood_ratio(mu_hat)

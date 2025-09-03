@@ -207,6 +207,15 @@ def validate_input_data(input_data: input_data) -> None:
                     f'Systematic {name} has independent error-on-error but correlation is not diagonal')
 
     for name, typ in input_data.eoe_type.items():
+        # For independent type: expand scalar epsilon to a vector of length equal
+        # to the number of active (nonzero-shift) components
+        if typ == 'independent' and name in input_data.uncertain_systematics:
+            val = input_data.uncertain_systematics[name]
+            if not isinstance(val, (list, tuple, np.ndarray)):
+                expected_len = np.count_nonzero(input_data.syst[name])
+                input_data.uncertain_systematics[name] = (
+                    np.repeat(float(val), expected_len)
+                )
         # Drop zero-epsilon entries from uncertain_systematics with a warning
         if name in input_data.uncertain_systematics:
             if typ == 'dependent':
