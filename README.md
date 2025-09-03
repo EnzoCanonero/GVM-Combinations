@@ -43,6 +43,22 @@ nuisance parameters are profiled out, as in a BLUE-like combination.
 
 Further details can be found in [arXiv:2407.05322](https://arxiv.org/abs/2407.05322).
 
+## Bartlett Correction
+
+Profile likelihood ratios and goodness‑of‑fit (GOF) statistics can deviate from
+their asymptotic chi‑square behaviour when error‑on‑error terms are present.
+To improve accuracy without resorting to expensive profiling or toy MC, the toolkit 
+applies Bartlett correction factors computed analytically within the model.
+
+- Confidence intervals: the profile LR, `q(mu)`, is compared against a
+  Bartlett‑scaled threshold `b_profile × chi2_1(CL)`.
+- Goodness of fit: the overall fit statistic is rescaled as
+  `q* = q × (N−1) / b_chi2` and then interpreted against a `chi2_{N−1}`
+  distribution.
+
+The correction factors are computed automatically from the fitted point and the
+model’s information matrices; no user action is required.
+
 
 ## Setup
 
@@ -57,9 +73,17 @@ This installs the dependencies listed in ``requirements.txt`` using
 ## Usage
 
 ```python
-from gvm_toolkit import GVMCombination
+from gvm.gmv import GVMCombination
+from gvm.config import build_input_data
 
-comb = GVMCombination("path/to/config.yaml")
+#build input data object
+data = build_input_data("path/to/config.yaml")
+
+#set up combination
+comb = GVMCombination(data)
+
+#Fit!
+comb.fit()
 ```
 
 A comprehensive introductory tutorial is available in the [toy](tutorials/toy) folder. The top mass example from the [paper](https://arxiv.org/abs/2407.05322) can be found in the [top-mass](tutorials/top-mass) folder.
