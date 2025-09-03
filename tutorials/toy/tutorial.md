@@ -956,3 +956,8 @@ plt.show()
 ```
 
 ![png](output/toy4_outlier.png)
+
+### Notes on the two cases
+
+- Compatible inputs: the central value remains stable as ε varies; the 68.3% and 95.5% intervals broaden smoothly with increasing ε.
+- Outlier case: with ε = 0 the outlier pulls the estimate of μ toward it. As ε increases (e.g., ε ≈ 0.6), the outlier is effectively down‑weighted in the averaging, the interval widens, and the central value tracks closer to the cluster of compatible measurements.
