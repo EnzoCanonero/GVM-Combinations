@@ -189,7 +189,7 @@ through the theory, the API, and the interpretation of the outputs.
 ## Project Structure
 
 ```
-code3.0/
+GVM-Combinations/
 ├── pyproject.toml              # Package metadata & dependencies
 ├── setup.py                    # Fallback for older pip versions
 ├── src/gvm/                    # The statistical engine
