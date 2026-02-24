@@ -16,4 +16,5 @@ build/
 .claude/
 
 # Generated outputs
-runs/*/output/
+runs/*/output/*
+!runs/*/output/.gitkeep
