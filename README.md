@@ -12,14 +12,14 @@ $$
 \left(y_i-\mu-\sum_{p=1} \Gamma_i^{p}\theta^i_p\right)W_{ij}^{-1}
 \left(y_j-\mu-\sum_{p=1} \Gamma_j^{p}\theta^j_p\right)
 -\frac{1}{2}\sum_{p=1} \left(N+\frac{1}{2\varepsilon_p^2}\right)
-\log\\left[1 + 2\varepsilon_p^2 \sum_{i,j=1}^N \theta^i_p
+\log\left[1 + 2\varepsilon_p^2 \sum_{i,j=1}^N \theta^i_p
 \left(\rho^{(p)}\right)_{ij}^{-1} \theta^j_p\right] .
 $$
 
 Here, $\mu$ is the parameter of interest, and $\boldsymbol{\theta}$ denotes the nuisance
 parameters associated with each systematic source $p$, for which the corresponding
-error-on-error $\varepsilon_p$ is greater than zero. The coefficients $\Gamma_i^{p}$ quantify 
-the uncertainty induced by systematic source $p$ on measurement $i$, while $\rho^{(p)}$ is 
+error-on-error $\varepsilon_p$ is greater than zero. The coefficients $\Gamma_i^{p}$ quantify
+the uncertainty induced by systematic source $p$ on measurement $i$, while $\rho^{(p)}$ is
 the correlation matrix describing correlations among measurements due to source $p$.
 
 All other sources of systematic uncertainty, together with the statistical errors,
@@ -47,7 +47,7 @@ Further details can be found in [arXiv:2407.05322](https://arxiv.org/abs/2407.05
 
 Profile likelihood ratios and goodness‑of‑fit (GOF) statistics can deviate from
 their asymptotic chi‑square behaviour when error‑on‑error terms are present.
-To improve accuracy without resorting to expensive profiling or toy MC, the toolkit 
+To improve accuracy without resorting to expensive profiling or toy MC, the toolkit
 applies Bartlett correction factors computed analytically within the model.
 
 - Confidence intervals: the profile LR, `q(mu)`, is compared against a
@@ -57,58 +57,132 @@ applies Bartlett correction factors computed analytically within the model.
   distribution.
 
 The correction factors are computed automatically from the fitted point and the
-model’s information matrices; no user action is required.
-
+model's information matrices; no user action is required.
 
 ## Setup
 
-The toolkit requires a few Python packages.  A simple setup script is
-provided to install them all::
+Install the package in editable (development) mode:
 
-    ./setup.sh
-
-This installs the dependencies listed in ``requirements.txt`` using
-``pip``.
-
-## Usage
-
-```python
-from gvm.gmv import GVMCombination
-from gvm.config import build_input_data
-
-#build input data object
-data = build_input_data("path/to/config.yaml")
-
-#set up combination
-comb = GVMCombination(data)
-
-#Fit!
-comb.fit()
+```bash
+pip install -e .
 ```
 
-A comprehensive introductory tutorial is available in the [toy](tutorials/toy) folder. The top mass example from the [paper](https://arxiv.org/abs/2407.05322) can be found in the [top-mass](tutorials/top-mass) folder.
+This installs the `gvm` package and all its dependencies (`numpy`, `PyYAML`,
+`iminuit`, `scipy`, `matplotlib`).
+
+## Quick Start
+
+```python
+from gvm import GVMCombination, build_input_data
+
+data = build_input_data("path/to/config.yaml")
+comb = GVMCombination(data)
+comb.fit()
+
+lo, hi, hw = comb.confidence_interval(cl_val=0.683)
+print(f"mu = {comb.fit_results.mu:.4f}  68% CI = ({lo:.4f}, {hi:.4f})")
+```
+
+## Runs
+
+The `runs/` directory contains ready-to-use examples that produce numerical
+results and plots.  Two generic scripts drive every run:
+
+* **`run.py`** — baseline fit: prints the MLE, confidence intervals, and GOF;
+  saves `results.yaml` and `summary.png`.
+* **`scan.py`** — lambda scan: multiplies all error-on-error values by a
+  global factor $\lambda$ and tracks how $\mu$, the CI, and the GOF evolve;
+  saves `scan.png` and `gof.png`.
+
+Both accept `--config` and `--output` (defaults: the single YAML in `input/`
+and `output/`).  `scan.py` also accepts:
+
+* `--lambda-range MIN MAX` — scan range (default: `0.0 1.2`).
+* `--n-points N` — number of scan points (default: `14`).
+
+### Available examples
+
+| Directory | Description |
+|-----------|-------------|
+| `toy_2meas` | Two incompatible measurements ($y=\pm2.5$) with correlated statistical and systematic uncertainties. Dependent error-on-error $\varepsilon=0.5$. |
+| `toy_4meas` | Four measurements with one outlier ($y_1=16$). Independent error-on-error $\varepsilon=0.5$. |
+| `top_mass_outlier` | LHC top-mass combination (15 measurements) plus a fictitious outlier at 174.5 GeV. Error-on-error $\varepsilon=0.5$ on the NEW systematic associated with the fake measurement. |
+
+```bash
+# Baseline fit
+python runs/run.py --config runs/toy_2meas/input/toy2.yaml --output runs/toy_2meas/output
+python runs/run.py --config runs/toy_4meas/input/toy4.yaml --output runs/toy_4meas/output
+python runs/run.py --config runs/top_mass_outlier/input/LHC_comb_fictitious_meas.yaml --output runs/top_mass_outlier/output
+
+# Lambda scan
+python runs/scan.py --config runs/toy_2meas/input/toy2.yaml --output runs/toy_2meas/output
+python runs/scan.py --config runs/toy_4meas/input/toy4.yaml --output runs/toy_4meas/output
+python runs/scan.py --config runs/top_mass_outlier/input/LHC_comb_fictitious_meas.yaml --output runs/top_mass_outlier/output
+
+# Or cd into a run directory (auto-discovers input/*.yaml, outputs to output/)
+cd runs/toy_2meas && python ../run.py && python ../scan.py
+```
+
+## Notebooks
+
+The `notebooks/` directory contains educational material that explains and
+showcases the model step by step.  Unlike the runs, which produce standalone
+results, the notebooks are meant to be read interactively and walk the reader
+through the theory, the API, and the interpretation of the outputs.
+
+- [notebooks/toy/toy_tutorial.ipynb](notebooks/toy/toy_tutorial.ipynb) — Step-by-step
+  tutorial covering the GVM from scratch with toy examples.
+- [notebooks/top-mass/top_mass_combination.ipynb](notebooks/top-mass/top_mass_combination.ipynb) —
+  Top-mass combination example from [arXiv:2407.05322](https://arxiv.org/abs/2407.05322).
+
+## Project Structure
+
+```
+code3.0/
+├── pyproject.toml              # Package metadata & dependencies
+├── setup.py                    # Fallback for older pip versions
+├── src/gvm/                    # The statistical engine
+│   ├── __init__.py
+│   ├── combination.py          # GVMCombination class
+│   ├── config.py               # YAML parsing & validation
+│   ├── likelihood.py           # Log-likelihood construction
+│   ├── fit_results.py          # FitResult dataclass
+│   └── minuit_wrapper.py       # iMinuit interface
+├── runs/
+│   ├── run.py                  # Generic fit script (config as argument)
+│   ├── scan.py                 # Generic lambda scan script
+│   ├── toy_2meas/input/        # 2-measurement example (incompatible, correlated)
+│   ├── toy_4meas/input/        # 4-measurement example (outlier, independent)
+│   └── top_mass_outlier/input/ # Top-mass combination with fictitious outlier
+└── notebooks/
+    ├── toy/                    # Introductory tutorial
+    │   ├── toy_tutorial.ipynb
+    │   └── tutorial.md
+    └── top-mass/               # Top-mass combination tutorial
+```
 
 ## Configuration File
 
 The combination is driven by a YAML configuration file with three main
 sections:
 
-* ``global`` – directories containing correlation matrices and statistical
-  covariance files.  It must also define ``name``, ``n_meas`` and ``n_syst``
+* `global` – directories containing correlation matrices and statistical
+  covariance files.  It must also define `name`, `n_meas` and `n_syst`
   giving the combination name and the expected numbers of measurements and
   systematic sources.
-* ``data`` – the measurement names and central values together with their
+* `data` – the measurement names and central values together with their
   statistical uncertainties.  Statistical errors may be given explicitly or a
-  ``stat_cov_path`` can provide a covariance matrix.  In either case the
+  `stat_cov_path` can provide a covariance matrix.  In either case the
   toolkit constructs the full covariance matrix.
-* ``syst`` – list of systematics. Each has a ``shift`` block with ``value``
-  listing the shifts for each measurement and ``correlation`` specifying
-  ``diagonal``, ``ones`` or a path to a correlation matrix. An optional
-  ``error-on-error`` block specifies the ``value`` and ``type``
-  (``dependent`` or ``independent``). For ``independent`` systematics the
-  ``value`` may be either a list giving one epsilon per measurement or a
+* `syst` – list of systematics. Each has a `shift` block with `value`
+  listing the shifts for each measurement and `correlation` specifying
+  `diagonal`, `ones` or a path to a correlation matrix. An optional
+  `error-on-error` block specifies the `value` and `type`
+  (`dependent` or `independent`). For `independent` systematics the
+  `value` may be either a list giving one epsilon per measurement or a
   single number which is applied to all measurements. If omitted, the value
-  defaults to ``0`` and the type to ``dependent``.
+  defaults to `0` and the type to `dependent`.
+
 A minimal configuration:
 
 ```yaml
@@ -136,4 +210,4 @@ syst:
       type: dependent
 ```
 
-More information can be found in the [toy](tutorials/toy) folder.
+More information can be found in the [toy tutorial](notebooks/toy/toy_tutorial.ipynb).

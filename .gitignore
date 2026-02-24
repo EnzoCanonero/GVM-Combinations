@@ -1,6 +1,17 @@
-# Ignore Python cache directories
+# Python
 __pycache__/
-# Ignore Jupyter notebook checkpoints
+*.pyc
+*.egg-info/
+*.eggs/
+dist/
+build/
+
+# Jupyter
 .ipynb_checkpoints/
-# Ignore macOS metadata files
+
+# macOS
 .DS_Store
+
+# Generated outputs
+runs/*/output/
+notebooks/*/output/

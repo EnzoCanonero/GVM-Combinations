@@ -1,0 +1,22 @@
+global:
+  name: toy2_incompatible
+  n_meas: 2
+  n_syst: 1
+  corr_dir: correlations
+
+data:
+  stat_cov_path: stat_cov.txt
+  measurements:
+    - label: m1
+      central: 2.5
+    - label: m2
+      central: -2.5
+
+syst:
+  - name: sys1
+    shift:
+      value: [0.5, 1.0]
+      correlation: syst_corr.txt
+    error-on-error:
+      value: 0.5
+      type: dependent

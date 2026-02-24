@@ -1,0 +1,30 @@
+global:
+  name: toy4_compatible
+  n_meas: 4
+  n_syst: 1
+  corr_dir: correlations
+
+data:
+  measurements:
+    - label: y1
+      central: 11.0
+      stat_error: 1.0
+    - label: y2
+      central: 10.5
+      stat_error: 1.0
+    - label: y3
+      central: 9.5
+      stat_error: 1.0
+    - label: y4
+      central: 9.0
+      stat_error: 1.0
+
+syst:
+  - name: sys1
+    shift:
+      value: [1.0, 1.0, 1.0, 1.0]
+      correlation: diagonal
+    error-on-error:
+      value: 0.0
+      type: independent
+
