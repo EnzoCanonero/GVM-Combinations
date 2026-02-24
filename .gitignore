@@ -17,4 +17,3 @@ build/
 
 # Generated outputs
 runs/*/output/
-notebooks/*/output/
