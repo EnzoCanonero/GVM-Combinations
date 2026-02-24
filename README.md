@@ -83,6 +83,57 @@ lo, hi, hw = comb.confidence_interval(cl_val=0.683)
 print(f"mu = {comb.fit_results.mu:.4f}  68% CI = ({lo:.4f}, {hi:.4f})")
 ```
 
+## Configuration File
+
+The combination is driven by a YAML configuration file with three main
+sections:
+
+* `global` – directories containing correlation matrices and statistical
+  covariance files.  It must also define `name`, `n_meas` and `n_syst`
+  giving the combination name and the expected numbers of measurements and
+  systematic sources.
+* `data` – the measurement names and central values together with their
+  statistical uncertainties.  Statistical errors may be given explicitly or a
+  `stat_cov_path` can provide a covariance matrix.  In either case the
+  toolkit constructs the full covariance matrix.
+* `syst` – list of systematics. Each has a `shift` block with `value`
+  listing the shifts for each measurement and `correlation` specifying
+  `diagonal`, `ones` or a path to a correlation matrix. An optional
+  `error-on-error` block specifies the `value` and `type`
+  (`dependent` or `independent`). For `independent` systematics the
+  `value` may be either a list giving one epsilon per measurement or a
+  single number which is applied to all measurements. If omitted, the value
+  defaults to `0` and the type to `dependent`.
+
+A minimal configuration:
+
+```yaml
+global:
+  name: Example
+  n_meas: 2
+  n_syst: 1
+
+data:
+  measurements:
+    - label: A
+      central: 1.0
+      stat_error: 0.1
+    - label: B
+      central: 1.2
+      stat_error: 0.1
+
+syst:
+  - name: scale
+    shift:
+      value: [0.05, -0.02]
+      correlation: diagonal
+    error-on-error:
+      value: 0.02
+      type: dependent
+```
+
+More information can be found in the [toy tutorial](notebooks/toy/toy_tutorial.ipynb).
+
 ## Runs
 
 The `runs/` directory contains ready-to-use examples that produce numerical
@@ -160,54 +211,3 @@ code3.0/
     │   └── tutorial.md
     └── top-mass/               # Top-mass combination tutorial
 ```
-
-## Configuration File
-
-The combination is driven by a YAML configuration file with three main
-sections:
-
-* `global` – directories containing correlation matrices and statistical
-  covariance files.  It must also define `name`, `n_meas` and `n_syst`
-  giving the combination name and the expected numbers of measurements and
-  systematic sources.
-* `data` – the measurement names and central values together with their
-  statistical uncertainties.  Statistical errors may be given explicitly or a
-  `stat_cov_path` can provide a covariance matrix.  In either case the
-  toolkit constructs the full covariance matrix.
-* `syst` – list of systematics. Each has a `shift` block with `value`
-  listing the shifts for each measurement and `correlation` specifying
-  `diagonal`, `ones` or a path to a correlation matrix. An optional
-  `error-on-error` block specifies the `value` and `type`
-  (`dependent` or `independent`). For `independent` systematics the
-  `value` may be either a list giving one epsilon per measurement or a
-  single number which is applied to all measurements. If omitted, the value
-  defaults to `0` and the type to `dependent`.
-
-A minimal configuration:
-
-```yaml
-global:
-  name: Example
-  n_meas: 2
-  n_syst: 1
-
-data:
-  measurements:
-    - label: A
-      central: 1.0
-      stat_error: 0.1
-    - label: B
-      central: 1.2
-      stat_error: 0.1
-
-syst:
-  - name: scale
-    shift:
-      value: [0.05, -0.02]
-      correlation: diagonal
-    error-on-error:
-      value: 0.02
-      type: dependent
-```
-
-More information can be found in the [toy tutorial](notebooks/toy/toy_tutorial.ipynb).
