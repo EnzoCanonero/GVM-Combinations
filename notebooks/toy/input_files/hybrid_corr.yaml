@@ -1,0 +1,23 @@
+global:
+  name: hybrid_corr
+  n_meas: 2
+  n_syst: 1
+  corr_dir: correlations
+
+data:
+  measurements:
+    - label: m1
+      central: 1.5
+      stat_error: 1.0
+    - label: m2
+      central: -1.5
+      stat_error: 1.0
+
+syst:
+  - name: sys1
+    shift:
+      value: [0.5, 1.0]
+      correlation: hybrid_corr.txt
+    error-on-error:
+      value: 0.0
+      type: dependent

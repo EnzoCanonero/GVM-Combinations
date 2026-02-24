@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/Users/enzocanonero/opt/anaconda3/envs/statistics/bin/python:*)",
+      "Bash(PYTHON=/Users/enzocanonero/opt/anaconda3/envs/statistics/bin/python:*)",
+      "Bash($PYTHON -c \"import iminuit, numpy, scipy, matplotlib, yaml; print\\(''All deps OK''\\)\")",
+      "Bash(PYTHON=/Users/enzocanonero/opt/anaconda3/bin/python:*)",
+      "Bash(wc:*)"
+    ]
+  }
+}
